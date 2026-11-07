@@ -1,5 +1,8 @@
 import { REPORT_SHARING_ENTITIES } from './report-sharing.entity';
 import { AddReportDeliveries1793270000000 } from '../migrations/1793270000000-add-report-deliveries';
+import { AddArtifactComments1793560000000 } from '../migrations/postgres/1793560000000-add-artifact-comments';
+import { AddArtifactCommentNotification1793590000000 } from '../migrations/postgres/1793590000000-add-artifact-comment-notification';
+import { AddCommentThreadVisibility1793600000000 } from '../migrations/postgres/1793600000000-add-comment-thread-visibility';
 import { DataSource } from 'typeorm';
 import {
   REPORT_ENTITIES,
@@ -23,6 +26,12 @@ describe('private report migration', () => {
       const deliveryMigration = new AddReportDeliveries1793270000000();
       await deliveryMigration.up(runner);
       await deliveryMigration.up(runner);
+      await new AddArtifactComments1793560000000().up(runner);
+      await new AddArtifactComments1793560000000().up(runner);
+      await new AddArtifactCommentNotification1793590000000().up(runner);
+      await new AddCommentThreadVisibility1793600000000().up(runner);
+      await new AddCommentThreadVisibility1793600000000().up(runner);
+      await runner.dropTable('artifact_comment_notification');
       const diff = await db.driver.createSchemaBuilder().log();
       expect(diff.upQueries.map(query => query.query)).toEqual([]);
       for (const name of [

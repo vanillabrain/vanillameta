@@ -86,4 +86,42 @@ export class McpOAuthToken {
   expiresAt: Date;
 }
 
-export const MCP_OAUTH_ENTITIES = [McpOAuthPending, McpOAuthGrant, McpOAuthCode, McpOAuthToken];
+const timestamp = () =>
+  process.env.METADATA_DB_TYPE === 'postgres' ||
+  (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+    ? 'timestamp'
+    : 'datetime';
+
+export type McpOAuthRefreshState = 'active' | 'rotated' | 'superseded';
+
+/**
+ * One row per issued refresh token. The chain of a grant is its family (code grants are single
+ * use), so reuse revokes the grant. Only the SHA-256 of the token and of its paired access token
+ * are stored. Column order matches migration 1793570000000.
+ */
+@Entity('mcp_oauth_refresh')
+export class McpOAuthRefresh {
+  @PrimaryColumn({ length: 64 }) tokenHash: string;
+  @Index('IDX_mcp_oauth_refresh_grant') @Column({ length: 36 }) grantId: string;
+  @Column({ length: 255 }) clientId: string;
+  @Column({ type: 'text' }) resource: string;
+  @Column({ length: 64 }) accessHash: string;
+  @Column({ type: 'integer' }) rotation: number;
+  @Column({ type: 'varchar', length: 64, nullable: true }) parentHash: string | null;
+  @Column({ type: 'varchar', length: 64, nullable: true }) replacedByHash: string | null;
+  @Column({ length: 12, default: 'active' }) state: McpOAuthRefreshState;
+  @Column({ type: timestamp() }) issuedAt: Date;
+  @Column({ type: timestamp() }) expiresAt: Date;
+  /** First rotation only; a retry-window re-rotation never moves it. */
+  @Column({ type: timestamp(), nullable: true }) usedAt: Date | null;
+  /** The one permitted retry-window re-rotation of this parent. */
+  @Column({ type: timestamp(), nullable: true }) retriedAt: Date | null;
+}
+
+export const MCP_OAUTH_ENTITIES = [
+  McpOAuthPending,
+  McpOAuthGrant,
+  McpOAuthCode,
+  McpOAuthToken,
+  McpOAuthRefresh,
+];

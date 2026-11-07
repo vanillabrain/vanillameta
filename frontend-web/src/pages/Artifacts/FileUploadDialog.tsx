@@ -70,7 +70,7 @@ export default function FileUploadDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={artifact ? 'outline' : 'default'} className="h-10">
+        <Button variant="outline" className="h-10">
           {label}
         </Button>
       </DialogTrigger>
@@ -84,7 +84,9 @@ export default function FileUploadDialog({
         }}
       >
         <DialogTitle className="pr-8">{label}</DialogTitle>
-        <DialogDescription>{t('fileArtifact.uploadHint')}</DialogDescription>
+        <DialogDescription>
+          {artifact ? t('fileArtifact.uploadHint') : `${t('fileArtifact.uploadHint')} ${t('fileArtifact.hubHint')}`}
+        </DialogDescription>
         <form onSubmit={save} className="flex min-w-0 flex-col gap-4">
           <FieldGroup>
             {!artifact && (

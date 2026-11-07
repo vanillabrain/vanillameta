@@ -4,6 +4,22 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
+import type { AiScope } from '@/api/aiConnectionsService';
+
+export const isWriteScope = (scope: AiScope) => scope.endsWith(':write');
+export const SCOPE_LABELS: Record<AiScope, string> = {
+  'sources:read': 'aiConnections.sourcesRead',
+  'documents:read': 'aiConnections.documentsRead',
+  'dashboards:read': 'aiConnections.dashboardsRead',
+  'reports:read': 'aiConnections.reportsRead',
+  'comments:read': 'aiConnections.commentsRead',
+  'comments:write': 'aiConnections.commentsWrite',
+  'suggestions:write': 'aiConnections.suggestionsWrite',
+  'shares:write': 'aiConnections.sharesWrite',
+};
+export const SCOPE_WARNINGS: Partial<Record<AiScope, string>> = {
+  'shares:write': 'aiConnections.sharesWriteWarning',
+};
 
 export function useConnectionScope() {
   const [scope, setScope] = useState(personalLibrarySessionScope);

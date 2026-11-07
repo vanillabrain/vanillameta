@@ -1,3 +1,5 @@
+import { DashboardCommentService } from './dashboard-comment.service';
+import { DashboardCommentsController } from './dashboard-comments.controller';
 import { DashboardDeletionController } from './dashboard-deletion.controller';
 import { DashboardDeletionService } from './dashboard-deletion.service';
 import { DashboardDeleteReceipt } from './entities/dashboard-delete-receipt.entity';
@@ -45,8 +47,14 @@ import { PersonalViewService } from './personal-view.service';
       RefreshToken,
     ]),
   ],
-  controllers: [DashboardDeletionController, PersonalLibraryController, DashboardController],
+  controllers: [
+    DashboardCommentsController,
+    DashboardDeletionController,
+    PersonalLibraryController,
+    DashboardController,
+  ],
   providers: [
+    DashboardCommentService,
     DashboardDeletionService,
     PersonalLibraryService,
     DashboardService,
@@ -57,6 +65,6 @@ import { PersonalViewService } from './personal-view.service';
     JwtService,
     PersonalViewService,
   ],
-  exports: [DashboardService, DashboardCacheService],
+  exports: [DashboardService, DashboardCacheService, DashboardCommentService],
 })
 export class DashboardModule {}

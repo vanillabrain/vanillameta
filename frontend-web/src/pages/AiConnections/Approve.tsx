@@ -5,7 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { aiConnectionsService, AiScope, ConsentDecision, ConsentRequest } from '@/api/aiConnectionsService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
-import { ConnectionFrame, useConnectionScope } from './shared';
+import { ConnectionFrame, isWriteScope, SCOPE_LABELS, SCOPE_WARNINGS, useConnectionScope } from './shared';
 
 type State =
   | { kind: 'loading' }
@@ -28,7 +28,11 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
         .request(ticket, controller.signal)
         .then(request => {
           if (!controller.signal.aborted && scope === personalLibrarySessionScope())
-            setState({ kind: 'review', request, scopes: request.requestedScopes });
+            setState({
+              kind: 'review',
+              request,
+              scopes: request.requestedScopes.filter(scopeName => !isWriteScope(scopeName)),
+            });
         })
         .catch(() => {
           if (!controller.signal.aborted) setState({ kind: 'error' });
@@ -103,36 +107,56 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
         <dt>{t('aiConnections.expires')}</dt>
         <dd>{new Date(state.request.expiresAt).toLocaleString()}</dd>
       </dl>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 font-medium">{t('aiConnections.scopes')}</legend>
-        {state.request.requestedScopes.map(scopeName => (
-          <label
-            key={scopeName}
-            className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md border border-border px-3"
+      {[false, true].map(write => {
+        const names = state.request.requestedScopes.filter(scopeName => isWriteScope(scopeName) === write);
+        if (!names.length) return null;
+        return (
+          <fieldset
+            key={String(write)}
+            className={write ? 'flex flex-col gap-2 rounded-md border border-destructive/40 p-3' : 'flex flex-col gap-2'}
+            aria-describedby={write ? 'consent-write-warning' : undefined}
           >
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-primary"
-              checked={state.scopes.includes(scopeName)}
-              disabled={expired}
-              onChange={event => {
-                const checked = event.target.checked;
-                setState(previous =>
-                  previous.kind === 'review'
-                    ? {
-                        ...previous,
-                        scopes: checked
-                          ? [...previous.scopes, scopeName]
-                          : previous.scopes.filter(value => value !== scopeName),
-                      }
-                    : previous,
-                );
-              }}
-            />
-            {t(`aiConnections.${scopeName === 'sources:read' ? 'sourcesRead' : 'documentsRead'}`)}
-          </label>
-        ))}
-      </fieldset>
+            <legend className="mb-2 font-medium">{t(write ? 'aiConnections.writeScopes' : 'aiConnections.scopes')}</legend>
+            {write && (
+              <p id="consent-write-warning" className="break-keep text-sm text-muted-foreground">
+                {t('aiConnections.writeWarning')}
+              </p>
+            )}
+            {names.map(scopeName => (
+              <div key={scopeName} className="flex flex-col gap-1">
+                <label className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md border border-border px-3">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    aria-describedby={SCOPE_WARNINGS[scopeName] ? `consent-warning-${scopeName}` : undefined}
+                    checked={state.scopes.includes(scopeName)}
+                    disabled={expired}
+                    onChange={event => {
+                      const checked = event.target.checked;
+                      setState(previous =>
+                        previous.kind === 'review'
+                          ? {
+                              ...previous,
+                              scopes: checked
+                                ? [...previous.scopes, scopeName]
+                                : previous.scopes.filter(value => value !== scopeName),
+                            }
+                          : previous,
+                      );
+                    }}
+                  />
+                  {t(SCOPE_LABELS[scopeName])}
+                </label>
+                {SCOPE_WARNINGS[scopeName] && (
+                  <p id={`consent-warning-${scopeName}`} className="break-keep px-3 text-sm font-medium text-destructive">
+                    {t(SCOPE_WARNINGS[scopeName])}
+                  </p>
+                )}
+              </div>
+            ))}
+          </fieldset>
+        );
+      })}
       {expired && <p role="alert">{t('aiConnections.expired')}</p>}
       <div className="flex gap-3">
         <Button

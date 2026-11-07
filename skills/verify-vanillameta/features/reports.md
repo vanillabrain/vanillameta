@@ -30,3 +30,31 @@ fall back to the ChatGPT backend and report `model_not_found` for gpt-6-luna. Ve
 ledger records provider codex, model gpt-6-luna, and status ok. Keep `gpt-6-luna`; do not
 substitute another model. UI apply/undo without a save call is a separate assertion.
 
+## Comments and suggestions
+
+Region-anchored comments (whole report, text range, image) and suggestions. Design:
+`docs/architecture/artifact-comments-collaboration.md`; last run: `docs/testing/report-comments-collaboration.md`.
+
+- Use two browser origins so owner and recipient stay signed in at once: owner at
+  `http://127.0.0.1:3000`, recipient at `http://localhost:3000`. Local storage is per origin.
+  Both need the API CORS allowance; a failure there is a network error, not a credential error.
+- Set up the recipient with the Gotchas above (second account, enrollment code, owner adds it to
+  the organization), then share the report to its user ID at the version under test.
+- API (`Authorization: Bearer`, all `no-store`): `GET /v1/reports/:id/comments`,
+  `POST /v1/reports/:id/comments {requestId, version, anchor, body}`,
+  `POST .../comments/:threadId/replies`, `POST .../comments/:threadId/status`,
+  `POST /v1/reports/:id/suggestions`, `POST .../suggestions/:suggestionId/dismiss`, and
+  `POST /v1/reports/:id/save` with optional `appliedSuggestionIds`. Every write needs a UUID
+  `requestId`; resend the same one to prove idempotence.
+- Assert: the recipient lists only threads they started; the owner sees all; apply in the editor
+  changes only the draft; save marks the suggestion `applied` with `appliedVersion` equal to the
+  new version and resolves the thread when no open suggestion remains; the owner's location goes
+  `detached` at head while the recipient's pinned version stays `exact`.
+- Gotcha (Ego Lite): the browser toggles page visibility between actions. Report protection then
+  conceals the body and clears selection and the open composer. This is intended. Drive
+  selection to comment inside one in-page script (build a `Range`, dispatch `mouseup`, click the
+  comment button) and state in the evidence that it was not a real pointer drag.
+- Check 390, 768, and 1440: the comment panel is a 360px right column at 1440 and stacks below the
+  body at 768 and 390, with `scrollWidth == clientWidth`.
+- Claude over MCP is a separate flow: see [mcp-collaboration.md](mcp-collaboration.md).
+

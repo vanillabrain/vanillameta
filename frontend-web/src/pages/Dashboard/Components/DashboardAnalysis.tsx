@@ -43,6 +43,8 @@ import SourceDetails, {
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
 import { validateStudioFilters, validateStudioDateRange, validateStudioConditions } from '../Studio/studioDocument';
 import { cn } from '@/lib/utils';
+import { MessageSquare } from 'lucide-react';
+import type { DashboardCardComments } from '../Comments/DashboardComments';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
 export type DefaultFilterParse =
@@ -113,7 +115,8 @@ const analysisOutlineButtonClassName = cn(analysisButtonClassName, 'bg-backgroun
 const filterChipClassName =
   'min-h-8 max-w-full rounded-md border-primary/20 bg-primary/5 text-left text-xs text-primary [overflow-wrap:anywhere] hover:bg-primary/10';
 
-function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
+function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, comments, children }: any) {
+  const cardComments = comments as DashboardCardComments | undefined;
   const { t } = useTranslation();
   const [numberNotation, setNumberNotation] = useState<SavedViewState['numberNotation']>('auto');
   useEffect(() => {
@@ -425,6 +428,10 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       );
     return analysisLoading ? <Skeleton className="h-32 w-full" aria-label="분석 범위 확인 중" /> : <>{children}</>;
   }
+  const blockComment = (i: number) => {
+    const blockId: string | undefined = draft?.widgets?.[i]?.blockId;
+    return blockId && cardComments?.blocks.has(blockId) ? { blockId, active: cardComments.activeBlockId === blockId } : null;
+  };
   const dimensions = preview?.dimensions || [];
   const temporalColumns = preview?.temporalColumns || [];
   const temporalColumn = dateDraft.column || temporalColumns[0]?.column || '';
@@ -1237,7 +1244,12 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
             <Card
               key={draft?.widgets?.[i]?.blockId || i}
               data-block-id={draft?.widgets?.[i]?.blockId}
-              className={cn('h-auto gap-0 border border-border py-0 shadow-sm', widgetBlockClassName(i))}
+              data-comment-active={blockComment(i)?.active || undefined}
+              className={cn(
+                'h-auto gap-0 border border-border py-0 shadow-sm',
+                blockComment(i)?.active && 'ring-2 ring-ring',
+                widgetBlockClassName(i),
+              )}
               style={widgetBlockStyle(i, widget)}
             >
               <div
@@ -1291,6 +1303,21 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                   contributionDisabled={!!contributionDisabled || !!contributionReason(widget)}
                 />
               </div>
+              {blockComment(i) && (
+                <div className="flex justify-end px-4 pb-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-comment-trigger
+                    aria-label={`차트 ${widget.title || '제목 없음'}에 댓글`}
+                    onClick={event => cardComments?.onComment(draft.widgets[i].blockId, event.currentTarget)}
+                  >
+                    <MessageSquare aria-hidden="true" />
+                    댓글
+                  </Button>
+                </div>
+              )}
               {widget.contribution && (
                 <details className="min-w-0 px-5 py-1">
                   <summary className="cursor-pointer text-xs">집계 원본 확인</summary>

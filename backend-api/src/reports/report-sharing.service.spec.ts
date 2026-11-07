@@ -23,6 +23,7 @@ import {
   ReportDeliveryReceipt,
 } from './report-sharing.entity';
 import { encodeReport } from './report-contract';
+import { REPORT_COMMENT_ENTITIES } from './report-comment.entity';
 
 const owner = { id: 7, authVersion: 0 },
   recipient = { id: 8, authVersion: 0 };
@@ -146,6 +147,7 @@ describe('report recipient sharing with real SQLite transactions', () => {
         StudioState,
         ...REPORT_ENTITIES,
         ...REPORT_SHARING_ENTITIES,
+        ...REPORT_COMMENT_ENTITIES,
       ],
     }).initialize();
     for (const uid of [7, 8, 9, 10]) {

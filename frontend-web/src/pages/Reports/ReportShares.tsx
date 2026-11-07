@@ -437,6 +437,7 @@ function ShareControls({
                     : item.status === 'suspended'
                     ? '사용 중단 · 다시 공유 필요'
                     : '회수됨'}
+                  {item.sharedBy && ` · Claude가 공유함 · ${item.sharedBy.clientName}`}
                 </p>
               </div>
               {canShare && item.userId && (

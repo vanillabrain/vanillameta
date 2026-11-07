@@ -46,6 +46,7 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { REPORT_COMMENT_ENTITIES } from '../reports/report-comment.entity';
 
 /*
  * Journey spec for the share-to-fork use case (docs/testing/shared-fork-verification.md, rows
@@ -135,6 +136,7 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
         StudioPublication,
         StudioPublicationRequest,
         StudioRemixRequest,
+        ...REPORT_COMMENT_ENTITIES,
       ],
     }).initialize();
     await db.manager.insert(

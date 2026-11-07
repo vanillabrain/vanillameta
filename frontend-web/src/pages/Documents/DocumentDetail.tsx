@@ -11,6 +11,7 @@ import {
 } from '@/api/documentService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import ConnectDialog from './ConnectDialog';
 import { DocumentFrame, useDocumentScope } from './shared';
@@ -82,6 +83,7 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
   }, [id, scope, reload]);
   const canWrite = read.kind === 'ready' && read.list.organizationId !== null && scope !== null && !needsRead;
   const connected = read.kind === 'ready' && read.detail.connected;
+  const provider = read.kind === 'ready' ? t(`docConnection.provider_${read.detail.provider}`) : '';
   const pending = 'pending' in refresh ? refresh.pending : null;
   const isBusy = refresh.kind === 'busy' || disconnectBusy;
   const newAttempt =
@@ -198,15 +200,31 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
     }
   };
   return (
-    <DocumentFrame title={read.kind === 'ready' ? read.detail.title : t('docConnection.title')}>
+    <DocumentFrame
+      title={read.kind === 'ready' ? read.detail.title : t('docConnection.title')}
+      actions={
+        <Button
+          className="h-10"
+          variant="outline"
+          disabled={isBusy || read.kind === 'loading'}
+          onClick={() => setReload(value => value + 1)}
+        >
+          {t('docConnection.reload')}
+        </Button>
+      }
+    >
       {read.kind === 'ready' && read.detail.role === 'owner' && (
-        <section className="my-6 rounded-xl border p-5" aria-label="문서 공유">
+        <section className="rounded-xl border p-5" aria-label="문서 공유">
           <h2 className="font-semibold">문서 공유</h2>
           <p className="text-sm text-muted-foreground">같은 조직 구성원에게 저장된 버전을 읽기 전용으로 공유합니다.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              aria-label="받는 사람 ID"
-              className="h-10 rounded-md border bg-background px-3"
+          <label htmlFor="document-share-recipient" className="mt-4 block text-sm font-medium">
+            받는 사람 ID
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Input
+              id="document-share-recipient"
+              inputMode="numeric"
+              className="w-48"
               value={recipientId}
               onChange={event => setRecipientId(event.target.value)}
             />
@@ -251,25 +269,15 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
         </section>
       )}
       {read.kind === 'ready' && read.detail.role === 'recipient' && (
-        <p role="status" className="my-4 rounded-lg border p-3 text-sm">
+        <p role="status" className="rounded-lg border p-3 text-sm">
           받은 문서입니다. 읽기 전용이며 원본 편집 권한은 포함하지 않습니다.
         </p>
       )}
       {read.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
       {read.kind === 'error' && <p role="alert">{t('docConnection.loadError')}</p>}
-      <div>
-        <Button
-          className="h-10"
-          variant="outline"
-          disabled={isBusy || read.kind === 'loading'}
-          onClick={() => setReload(value => value + 1)}
-        >
-          {t('docConnection.reload')}
-        </Button>
-      </div>
       {error && <p role="alert">{t(`docConnection.${error}`)}</p>}
       {read.kind === 'ready' && (
-        <section className="my-6 rounded-xl border p-5" aria-label="AI 요약">
+        <section className="rounded-xl border p-5" aria-label="AI 요약">
           <h2 className="font-semibold">AI 요약</h2>
           <p className="text-sm text-muted-foreground">
             저장된 버전 본문을 AI로 요약합니다. 호출 비용이 발생하며 결과는 이 버전에만 저장됩니다.
@@ -320,15 +328,18 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
       )}
       {read.kind === 'ready' && (
         <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <section className="flex flex-col gap-3 rounded-xl border p-5" aria-label={t('docConnection.original')}>
-            <h2 className="font-semibold">{t('docConnection.original')}</h2>
+          <section
+            className="flex flex-col gap-3 rounded-xl border p-5"
+            aria-label={t('docConnection.original', { provider })}
+          >
+            <h2 className="font-semibold">{t('docConnection.original', { provider })}</h2>
             <a
               className="flex items-center gap-2 underline"
               href={read.detail.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
-              {t('docConnection.openOriginal')}
+              {t('docConnection.openOriginal', { provider })}
               <ExternalLink size={16} />
             </a>
             <p>{t(connected ? 'docConnection.connected' : 'docConnection.disconnected')}</p>
@@ -387,7 +398,7 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
           </section>
           <section className="flex flex-col gap-4 rounded-xl border p-5" aria-label={t('docConnection.stored')}>
             <h2 className="font-semibold">{t('docConnection.stored')}</h2>
-            <p className="text-sm text-muted-foreground">{t('docConnection.storedHint')}</p>
+            <p className="text-sm text-muted-foreground">{t('docConnection.storedHint', { provider })}</p>
             {read.detail.versions.length === 0 && <p>{t('docConnection.noSnapshot')}</p>}
             {read.detail.versions.length > 0 && (
               <>
@@ -432,7 +443,7 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
                 </details>
                 <pre
                   aria-label={t('docConnection.markdown')}
-                  className="max-h-[640px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-5 font-mono text-sm"
+                  className="max-h-[640px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-5 font-sans text-sm leading-relaxed"
                 >
                   {snapshot.markdown}
                 </pre>

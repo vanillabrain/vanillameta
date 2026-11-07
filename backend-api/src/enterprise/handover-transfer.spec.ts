@@ -42,6 +42,7 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { sourceQuery, widgetOptions } from '../ai/dashboard-draft';
 import { renderValidatedQueryBindings } from '../common/validated-query-bindings';
 import { AddHandoverTransfer1792610000000 } from '../migrations/1792610000000-add-handover-transfer';
+import { REPORT_COMMENT_ENTITIES } from '../reports/report-comment.entity';
 
 const entities = [
   User,
@@ -69,6 +70,7 @@ const entities = [
   EnterpriseAuditEvent,
   EnterpriseHandoverProposal,
   EnterpriseHandoverTransfer,
+  ...REPORT_COMMENT_ENTITIES,
 ];
 describe('UC051 final dashboard transfer actual HTTP and metadata', () => {
   jest.setTimeout(30000);

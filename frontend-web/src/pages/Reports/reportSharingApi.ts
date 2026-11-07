@@ -104,6 +104,10 @@ const sharesSchema = z
           relationVersion: version,
           pinnedVersion: positive,
           status: z.enum(['active', 'suspended', 'revoked']),
+          sharedBy: z
+            .object({ kind: z.literal('ai'), clientName: z.string().min(1).max(100) })
+            .strict()
+            .optional(),
         })
         .strict(),
     ),

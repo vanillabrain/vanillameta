@@ -21,10 +21,15 @@ import {
   storeReportPending,
   removeReportPending,
 } from './reportPending';
+import { AuthorName } from '@/components/comments/CommentThread';
+import { CommentSuggestion, CommentThread, commentError, reportCommentApi } from './reportCommentApi';
+import { SuggestionDiff, draftPlacement } from './ReportComments';
 import './reports.css';
 
 type ReportImage = { id: string; dataUrl: string; alt: string; width: 'full' | 'half' };
 type VersionRow = { version: number; revision: string; bytes: number; current: boolean };
+type DraftState = { body: string; images: ReportImage[]; applied: string[] };
+const APPLIED_LIMIT = 20;
 const IMAGE_LIMIT = 512 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
@@ -61,7 +66,12 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<ReportImage[]>([]);
-  const [history, setHistory] = useState<Array<{ body: string; images: ReportImage[] }>>([]);
+  const [history, setHistory] = useState<DraftState[]>([]);
+  const [applied, setApplied] = useState<string[]>([]);
+  const [threads, setThreads] = useState<CommentThread[] | null>(null);
+  const [commentsError, setCommentsError] = useState('');
+  const [commentsAttempt, setCommentsAttempt] = useState(0);
+  const [dismissing, setDismissing] = useState(false);
   const [suggestion, setSuggestion] = useState('');
   const [suggesting, setSuggesting] = useState(false);
   const [versions, setVersions] = useState<VersionRow[]>([]);
@@ -86,6 +96,8 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
     setBody(documentBlocks.length ? text : report.body);
     setImages(documentBlocks.filter((block): block is ReportImage => block.kind === 'IMAGE'));
     setHistory([]);
+    setApplied([]);
+    setThreads(null);
     setSuggestion('');
     setVersions([]);
     setVersionsOpen(false);
@@ -135,6 +147,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
         setId(ticket.reportId);
         setTitle(ticket.command.title);
         setBody(ticket.command.body);
+        setApplied(ticket.command.appliedSuggestionIds ?? []);
         const outcome = await reportApi.outcome(ticket.reportId, ticket.command.requestId, dashboard);
         if (!current(token)) return;
         setMessage(
@@ -154,6 +167,23 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
       generation.current += 1;
     };
   }, [routeId, dashboardParam, loadAttempt]);
+  const savedId = saved?.reportId;
+  const savedVersion = saved?.version;
+  useEffect(() => {
+    if (!savedId) return;
+    const token = generation.current;
+    const controller = new AbortController();
+    setCommentsError('');
+    reportCommentApi
+      .list(savedId, controller.signal)
+      .then(result => {
+        if (!controller.signal.aborted && current(token)) setThreads(result.threads);
+      })
+      .catch(cause => {
+        if (!controller.signal.aborted && current(token)) setCommentsError(commentError(cause));
+      });
+    return () => controller.abort();
+  }, [savedId, savedVersion, commentsAttempt]);
 
   const checkOutcome = async (open: boolean) => {
     if (!current() || !pending || busy) return;
@@ -217,10 +247,17 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
       if (!removeReportPending(key.current)) throw new Error('storage');
       setPending(null);
       accept(latest);
+      setCommentsAttempt(attempt => attempt + 1);
+      const requested = ticket.command.appliedSuggestionIds?.length ?? 0;
+      const appliedNote = requested
+        ? ` 제안 ${result.appliedSuggestionIds.length}건을 적용 완료로 표시했습니다${
+            requested > result.appliedSuggestionIds.length ? '(이미 처리된 제안은 건너뜀)' : ''
+          }.`
+        : '';
       setMessage(
-        result.replayed
+        (result.replayed
           ? `기존 요청은 r${result.report.version}으로 저장됐습니다. 현재 저장본 r${latest.version}을 열었습니다.`
-          : `비공개 r${latest.version} 저장 완료. 숫자는 저장 당시 기준으로 고정됩니다.`,
+          : `비공개 r${latest.version} 저장 완료. 숫자는 저장 당시 기준으로 고정됩니다.`) + appliedNote,
       );
       navigate(navigation.link('/reports/' + latest.reportId), { replace: true });
     } catch (cause) {
@@ -239,6 +276,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
         expectedRevision: saved?.revision ?? null,
         title,
         body,
+        ...(applied.length ? { appliedSuggestionIds: applied } : {}),
         blocks: [
           ...(body.trim() ? [{ id: 'text', kind: 'TEXT' as const, text: body }] : []),
           ...images.map(image => ({ ...image, kind: 'IMAGE' as const })),
@@ -312,7 +350,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
       return copy;
     });
   const removeImage = (id: string) => setImages(current => current.filter(image => image.id !== id));
-  const remember = () => setHistory(current => [...current.slice(-9), { body, images }]);
+  const remember = () => setHistory(current => [...current.slice(-9), { body, images, applied }]);
   const askSuggestion = async () => {
     if (!current() || !saved || busy || suggesting) return;
     setSuggesting(true);
@@ -333,12 +371,40 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
     setSuggestion('');
     setMessage('AI 제안을 본문에 적용했습니다. 저장 전까지 서버에는 반영되지 않습니다.');
   };
+  const applyCommentSuggestion = (item: CommentSuggestion) => {
+    if (busy || pending || applied.includes(item.id) || applied.length >= APPLIED_LIMIT) return;
+    const { location, applicable } = draftPlacement(item, body);
+    if (!applicable) return;
+    remember();
+    setBody(body.slice(0, location.start) + item.replacement + body.slice(location.end));
+    setApplied([...applied, item.id]);
+    setMessage('제안을 본문 초안에 적용했습니다. 비공개 저장 전까지 서버에는 반영되지 않습니다.');
+  };
+  const dismissSuggestion = async (item: CommentSuggestion) => {
+    if (!saved || busy || pending || dismissing || applied.includes(item.id)) return;
+    const token = generation.current;
+    setDismissing(true);
+    setCommentsError('');
+    try {
+      const result = await reportCommentApi.dismiss(saved.reportId, item.id, {
+        requestId: crypto.randomUUID(),
+        expectedStatusVersion: item.statusVersion,
+      });
+      if (!current(token)) return;
+      setThreads(list => list?.map(thread => (thread.id === result.thread.id ? result.thread : thread)) ?? list);
+    } catch (cause) {
+      if (current(token)) setCommentsError(commentError(cause));
+    } finally {
+      if (current(token)) setDismissing(false);
+    }
+  };
   const undoBody = () => {
     const last = history[history.length - 1];
-    if (!last) return;
+    if (!last || busy || pending) return;
     setHistory(current => current.slice(0, -1));
     setBody(last.body);
     setImages(last.images);
+    setApplied(last.applied);
     setMessage('직전 본문과 이미지로 되돌렸습니다. 아직 저장하지 않았습니다.');
   };
   const toggleVersions = async (open: boolean) => {
@@ -368,6 +434,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
       );
       setImages(documentBlocks.filter((block): block is ReportImage => block.kind === 'IMAGE'));
       setHistory([]);
+      setApplied([]);
       setPreview(null);
       setMessage(
         version === saved.version
@@ -386,14 +453,14 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
     <main className="private-reports bg-background text-foreground">
       <nav className="report-toolbar">
         <Link to={navigation.link('/reports')}>비공개 보고서 목록</Link>
-        <Link to={navigation.listHref}>Artifact 허브</Link>
+        <Link to={navigation.listHref}>아티팩트</Link>
         {saved && <Link to={navigation.link(`/reports/${saved.reportId}/read`)}>저장본 읽기·공유</Link>}
         {dashboardId > 0 && <Link to={navigation.link(`/dashboard/${dashboardId}/studio`)}>원본 Studio</Link>}
       </nav>
       <header className="report-heading">
         <div>
           <p className="text-sm text-muted-foreground">소유자 편집 · 고정 보고서</p>
-          <h1>{loaded ? (saved ? '매출 보고서' : '비공개 보고서 작성') : '비공개 보고서 불러오기'}</h1>
+          <h1>{loaded ? (saved ? '보고서 편집' : '비공개 보고서 작성') : '비공개 보고서 불러오기'}</h1>
         </div>
         <span className="rounded-full border px-3 py-1 text-sm">
           {loaded ? (saved ? `저장본 r${saved.version}` : '작성 중') : busy ? '조회 중' : '조회 실패'}
@@ -631,7 +698,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
                     type="button"
                     variant="ghost"
                     className="h-9"
-                    disabled={!history.length || !!busy}
+                    disabled={!history.length || !!busy || !!pending}
                     onClick={undoBody}
                   >
                     되돌리기
@@ -651,6 +718,108 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
                   </div>
                 )}
               </details>
+              {saved && (
+                <details className="report-comments-review">
+                  <summary>
+                    댓글·제안 {threads ? `${threads.filter(thread => thread.status === 'open').length}개 열림` : ''}
+                  </summary>
+                  <p className="text-sm text-muted-foreground">
+                    제안은 현재 초안에서 다시 찾아 적용합니다. 적용은 초안만 바꾸며 비공개 저장 때 함께 기록됩니다. 새 댓글은
+                    읽기 화면에서 남깁니다.
+                  </p>
+                  <div className="report-comment-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={dismissing}
+                      onClick={() => setCommentsAttempt(attempt => attempt + 1)}
+                    >
+                      새로 고침
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={!history.length || !!busy || !!pending}
+                      onClick={undoBody}
+                    >
+                      직전 적용 되돌리기
+                    </Button>
+                  </div>
+                  {commentsError && <p role="alert">{commentsError}</p>}
+                  {!threads && !commentsError && <p className="text-sm text-muted-foreground">댓글을 불러오는 중입니다.</p>}
+                  {threads && !threads.length && <p className="text-sm text-muted-foreground">아직 댓글이 없습니다.</p>}
+                  {threads && threads.length > 0 && (
+                    <ol className="report-comment-threads">
+                      {threads.map(thread => {
+                        const last = thread.comments[thread.comments.length - 1];
+                        return (
+                          <li key={thread.id} className="report-comment-thread">
+                            <p className="report-comment-anchor">
+                              {thread.anchor.kind === 'text'
+                                ? `“${thread.anchor.quote}”`
+                                : thread.anchor.kind === 'image'
+                                ? '이미지'
+                                : '보고서 전체'}
+                            </p>
+                            <p className="report-comment-meta">
+                              r{thread.version} · {thread.status === 'open' ? '열림' : '해결됨'} · 댓글{' '}
+                              {thread.comments.length}
+                            </p>
+                            {last && (
+                              <p className="report-comment-body">
+                                <AuthorName author={last.author} /> {last.body}
+                              </p>
+                            )}
+                            {thread.suggestions
+                              .filter(item => item.status === 'open')
+                              .map(item => {
+                                const inDraft = applied.includes(item.id);
+                                const { applicable } = draftPlacement(item, body);
+                                return (
+                                  <section key={item.id} className="report-comment-suggestion" aria-label="수정 제안">
+                                    <p className="report-comment-meta">
+                                      <AuthorName author={item.author} /> · r{item.baseVersion} 기준
+                                      {inDraft ? ' · 초안에 적용됨, 저장 전' : ''}
+                                    </p>
+                                    <SuggestionDiff suggestion={item} />
+                                    {!inDraft && !applicable && (
+                                      <p className="report-comment-flag">
+                                        현재 초안에서 바꿀 부분을 하나로 찾지 못해 적용할 수 없습니다.
+                                      </p>
+                                    )}
+                                    <div className="report-comment-actions">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={
+                                          inDraft || !applicable || !!busy || !!pending || applied.length >= APPLIED_LIMIT
+                                        }
+                                        onClick={() => applyCommentSuggestion(item)}
+                                      >
+                                        본문에 적용
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={inDraft || dismissing || !!busy || !!pending}
+                                        onClick={() => void dismissSuggestion(item)}
+                                      >
+                                        제안 닫기
+                                      </Button>
+                                    </div>
+                                  </section>
+                                );
+                              })}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </details>
+              )}
               {saved && (
                 <details
                   className="report-versions"

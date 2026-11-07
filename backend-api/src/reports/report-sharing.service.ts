@@ -21,6 +21,7 @@ import { PrivateReport } from './report.entity';
 import { ReportDelivery, ReportDeliveryReceipt } from './report-sharing.entity';
 import { ReportsService } from './reports.service';
 import { canonicalReport, parseReport, reportHash, reportId, ReportActor } from './report-contract';
+import { RequestReusedException } from './report-comment-contract';
 import {
   reportPeerQuery,
   reportShareCommand,
@@ -28,12 +29,19 @@ import {
   ShareReceipt,
 } from './report-sharing-contract';
 import { readerContent } from './report-reader';
+import { notifyNewlyVisible } from './comment-notification';
 
 const denied = () => new ForbiddenException('현재 이 보고서에 접근할 수 없습니다.');
 const sourceBinding = z.object({ sourceId: z.number().int().positive() });
 const analysisBinding = z.object({ databaseId: z.number().int().positive() });
 const studioBinding = z.object({ document: sourceBinding });
 const validEpoch = (value: number) => Number.isSafeInteger(value) && value >= 0;
+
+/** Lets the MCP layer re-check its grant first in the share transaction and record AI provenance. */
+export type ShareChangeOptions = {
+  beforeAccess?: (manager: EntityManager) => Promise<void>;
+  ai?: { grantId: string; clientName: string };
+};
 
 @Injectable()
 export class ReportSharingService {
@@ -149,7 +157,13 @@ export class ReportSharingService {
     if ((context.organizationId ?? 0) !== head.organizationKey) throw denied();
     await this.root(manager, head, false);
     if (head.ownerId === actor.id)
-      return { role: 'owner' as const, version: head.version, hash: head.revision };
+      return {
+        role: 'owner' as const,
+        version: head.version,
+        hash: head.revision,
+        relationVersion: null,
+        activatedRelationVersion: null,
+      };
     const { user, member } = await this.identity(manager, head.ownerId);
     const relation = await manager.findOneBy(ReportDelivery, {
       reportId: head.id,
@@ -172,7 +186,35 @@ export class ReportSharingService {
       role: 'recipient' as const,
       version: relation.pinnedVersion,
       hash: relation.pinnedHash,
+      relationVersion: relation.relationVersion as number | null,
+      activatedRelationVersion: (relation.activatedRelationVersion ?? 0) as number | null,
     };
+  }
+  /**
+   * The read permission without loading the stored version: same checks as access() except the
+   * revision hash. For cheap re-checks (comment notification counts); anything that shows report
+   * content must use access().
+   */
+  async readableHead(manager: EntityManager, reportId: string, actor: ReportActor) {
+    const head = await this.head(manager, reportId);
+    return { ...(await this.readable(manager, head, actor)), head };
+  }
+  /**
+   * The single read permission for a report: owner (head version) or current recipient (pinned
+   * version), with the stored revision verified against the expected hash. Callers run it on every
+   * read and write; `lock` takes the head row FOR UPDATE (not on SQLite) before the checks.
+   */
+  async access(
+    manager: EntityManager,
+    reportId: string,
+    actor: ReportActor,
+    options: { lock?: boolean } = {},
+  ) {
+    const head = await this.head(manager, reportId, options.lock === true);
+    const access = await this.readable(manager, head, actor);
+    const report = await this.reports.stored(manager, head, access.version);
+    if (report.revision !== access.hash) throw denied();
+    return { ...access, head, report };
   }
   async reader(rawId: string, actor: ReportActor) {
     const id = parseReport(reportId, rawId);
@@ -180,11 +222,8 @@ export class ReportSharingService {
       const hint = await this.head(manager, id);
       await lockStaffWrite(manager, [actor.id, hint.ownerId]);
       await this.lockRoots(manager, [hint]);
-      const head = await this.head(manager, id, true);
-      const access = await this.readable(manager, head, actor);
-      const report = await this.reports.stored(manager, head, access.version);
-      if (report.revision !== access.hash) throw denied();
-      return { role: access.role, ...readerContent(report) };
+      const access = await this.access(manager, id, actor, { lock: true });
+      return { role: access.role, ...readerContent(access.report) };
     });
   }
   async library(actor: ReportActor, rawAfter?: string) {
@@ -285,6 +324,20 @@ export class ReportSharingService {
       await this.lockRoots(manager, [hint], true);
       const head = await this.head(manager, id, true);
       const { context, active } = await this.owner(manager, head, actor, true);
+      const aiShares = new Map<string, string>();
+      for (const row of await manager
+        .createQueryBuilder(ReportDeliveryReceipt, 'r')
+        .where('r.ownerId = :owner AND r.organizationId = :org AND r.reportId = :id', {
+          owner: actor.id,
+          org: head.organizationKey,
+          id,
+        })
+        .andWhere('r.aiClientName IS NOT NULL')
+        .getMany()) {
+        const receipt = reportShareReceipt.parse(JSON.parse(row.result));
+        if (receipt.operation === 'share')
+          aiShares.set(`${receipt.recipientId}:${receipt.relationVersion}`, row.aiClientName);
+      }
       const items = await Promise.all(
         page.slice(0, 50).map(async hint => {
           const row = await manager.findOneByOrFail(ReportDelivery, {
@@ -297,6 +350,9 @@ export class ReportSharingService {
             validEpoch(user.authVersion) &&
             member?.organizationId === head.organizationKey &&
             ['admin', 'member'].includes(member.role);
+          const aiClientName = row.active
+            ? aiShares.get(`${row.recipientId}:${row.relationVersion}`)
+            : undefined;
           return {
             recipientId: row.recipientId,
             userId: current ? user.userId : null,
@@ -312,6 +368,9 @@ export class ReportSharingService {
                 row.recipientAuthVersion === user.authVersion
               ? ('active' as const)
               : ('suspended' as const),
+            ...(aiClientName
+              ? { sharedBy: { kind: 'ai' as const, clientName: aiClientName } }
+              : {}),
           };
         }),
       );
@@ -325,11 +384,17 @@ export class ReportSharingService {
       };
     });
   }
-  async change(rawId: string, input: unknown, actor: ReportActor) {
+  async change(
+    rawId: string,
+    input: unknown,
+    actor: ReportActor,
+    options: ShareChangeOptions = {},
+  ) {
     const id = parseReport(reportId, rawId),
       body = parseReport(reportShareCommand, input);
     const digest = reportHash(canonicalReport({ id, ...body }));
     return this.transaction(actor, async manager => {
+      await options.beforeAccess?.(manager);
       const hint = await this.head(manager, id);
       await lockStaffWrite(manager, [actor.id, hint.ownerId, body.recipientId]);
       await this.lockRoots(manager, [hint], body.operation.kind === 'revoke');
@@ -345,7 +410,7 @@ export class ReportSharingService {
       const prior = await manager.findOneBy(ReportDeliveryReceipt, receiptKey);
       if (prior) {
         if (prior.reportId !== id || prior.payloadHash !== digest)
-          throw new ConflictException('같은 요청 ID의 입력이 다릅니다.');
+          throw new RequestReusedException('같은 요청 ID의 입력이 다릅니다.');
         return { receipt: reportShareReceipt.parse(JSON.parse(prior.result)), replayed: true };
       }
       if (body.recipientId === actor.id) throw denied();
@@ -382,6 +447,10 @@ export class ReportSharingService {
           relation.ownerAuthVersion !== context.authVersion ||
           relation.recipientAuthVersion !== user.authVersion;
         version += changed ? 1 : 0;
+        const reactivated =
+          !relation?.active ||
+          relation.ownerAuthVersion !== context.authVersion ||
+          relation.recipientAuthVersion !== user.authVersion;
         pinnedVersion = head.version;
         const next = {
           ...key,
@@ -389,6 +458,7 @@ export class ReportSharingService {
           organizationId: head.organizationKey,
           active: true,
           relationVersion: version,
+          activatedRelationVersion: reactivated ? version : relation?.activatedRelationVersion ?? 0,
           pinnedVersion,
           pinnedHash: head.revision,
           ownerAuthVersion: context.authVersion,
@@ -396,6 +466,18 @@ export class ReportSharingService {
         };
         if (relation) await manager.update(ReportDelivery, key, next);
         else await manager.insert(ReportDelivery, next);
+        await notifyNewlyVisible(manager, {
+          reportId: id,
+          ownerId: head.ownerId,
+          organizationKey: head.organizationKey,
+          recipientId: body.recipientId,
+          fromVersion: reactivated ? 0 : relation?.pinnedVersion ?? 0,
+          toVersion: pinnedVersion,
+          now: new Date().toISOString(),
+          actor: options.ai
+            ? { id: actor.id, kind: 'ai', clientName: options.ai.clientName }
+            : { id: actor.id, kind: 'user', clientName: null },
+        });
       } else if (relation?.active) {
         version += 1;
         await manager.update(ReportDelivery, key, { active: false, relationVersion: version });
@@ -413,6 +495,8 @@ export class ReportSharingService {
         reportId: id,
         payloadHash: digest,
         result: canonicalReport(receipt),
+        aiGrantId: options.ai?.grantId ?? null,
+        aiClientName: options.ai?.clientName ?? null,
       });
       return { receipt, replayed: false };
     });

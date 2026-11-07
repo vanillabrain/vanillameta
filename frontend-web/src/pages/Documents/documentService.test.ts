@@ -17,6 +17,25 @@ it('unwraps Axios response.data without a SUCCESS envelope', async () => {
   });
   await expect(documentService.list()).rejects.toThrow();
 });
+it('keeps the document provider from the list response and defaults older rows to google', async () => {
+  const row = { id, title: 'Plan', currentVersion: 1, connected: false, updatedAt: '2026-11-01T00:00:00.000Z' };
+  vi.mocked(get).mockResolvedValue({
+    data: {
+      configured: false,
+      organizationId: 1,
+      documents: [
+        { ...row, provider: 'microsoft', sourceUrl: 'https://onedrive.live.com/?id=plan' },
+        { ...row, sourceUrl },
+      ],
+    },
+  });
+  const list = await documentService.list();
+  expect(list.documents.map(document => document.provider)).toEqual(['microsoft', 'google']);
+  vi.mocked(get).mockResolvedValue({
+    data: { configured: false, organizationId: 1, documents: [{ ...row, provider: 'dropbox', sourceUrl }] },
+  });
+  await expect(documentService.list()).rejects.toThrow();
+});
 it.each([
   'https://accounts.google.com.evil.test/o/oauth2/v2/auth',
   'javascript:alert(1)',

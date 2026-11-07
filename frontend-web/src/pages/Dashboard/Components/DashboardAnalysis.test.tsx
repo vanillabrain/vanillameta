@@ -905,3 +905,28 @@ it('does not mount legacy data fetchers while a saved analysis result is pending
   await screen.findByText('10');
   expect(legacyQuery).not.toHaveBeenCalled();
 });
+
+it.each([
+  ['shows', new Set(['block-a'])],
+  ['omits', new Set<string>()],
+])('%s the chart comment button by the comment block set', async (_label, blocks) => {
+  api.get.mockResolvedValue(response({ databaseId: 3, widgets: [{ blockId: 'block-a' }] }));
+  api.post.mockResolvedValue(response(preview(10)));
+  const onComment = vi.fn();
+  render(
+    <DashboardAnalysis dashboardId={3} onSaved={vi.fn()} comments={{ blocks, activeBlockId: 'block-a', onComment }}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await screen.findByText('10');
+  const button = screen.queryByRole('button', { name: '차트 Requests에 댓글' });
+  const card = document.querySelector('[data-block-id="block-a"]');
+  if (!blocks.size) {
+    expect(button).toBeNull();
+    expect(card?.getAttribute('data-comment-active')).toBeNull();
+    return;
+  }
+  fireEvent.click(button as HTMLElement);
+  expect(onComment).toHaveBeenCalledWith('block-a', button);
+  expect(card?.getAttribute('data-comment-active')).toBe('true');
+});

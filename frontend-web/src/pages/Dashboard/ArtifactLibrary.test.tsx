@@ -8,9 +8,9 @@ vi.mock('react-i18next', async () => {
   return {
     useTranslation: () => ({
       t: (key: string, values: Record<string, string | number> = {}) => {
-        const text = key.startsWith('artifact.')
-          ? Object.entries(ko.artifact).find(([name]) => name === key.slice(9))?.[1] ?? key
-          : key;
+        const [group, name] = key.split('.');
+        const table = group === 'artifact' ? ko.artifact : group === 'docConnection' ? ko.docConnection : undefined;
+        const text = (table && (Object.entries(table).find(([entry]) => entry === name)?.[1] as string)) ?? key;
         return text.replace(/\{\{(\w+)\}\}/g, (_, name) => String(values[name] ?? ''));
       },
     }),
@@ -180,6 +180,7 @@ it('merges Google documents and file artifacts into the same search, filters, an
   const documents = [
     {
       id: '11111111-1111-4111-8111-111111111111',
+      provider: 'google' as const,
       title: 'Alpha Google notes',
       sourceUrl: 'https://docs.google.com/document/d/abcdefghijklmnopqrstuvwxyz/edit',
       currentVersion: 2,
@@ -216,6 +217,37 @@ it('merges Google documents and file artifacts into the same search, filters, an
   expect(screen.getByRole('link', { name: 'Alpha contract' })).toBeTruthy();
   expect(screen.queryByRole('link', { name: 'Alpha Google notes' })).toBeNull();
   expect(screen.getByRole('status').textContent).toBe('전체 5개 중 1개');
+});
+
+it('labels linked documents by their provider', () => {
+  const documents = [
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      provider: 'microsoft' as const,
+      title: 'Plan in OneDrive',
+      sourceUrl: 'https://onedrive.live.com/?id=plan',
+      currentVersion: 1,
+      connected: false,
+      updatedAt: '2026-10-06T00:00:00.000Z',
+    },
+    {
+      id: '44444444-4444-4444-8444-444444444444',
+      provider: 'google' as const,
+      title: 'Plan in Docs',
+      sourceUrl: 'https://docs.google.com/document/d/abcdefghijklmnopqrstuvwxyz/edit',
+      currentVersion: 2,
+      connected: true,
+      updatedAt: '2026-10-05T00:00:00.000Z',
+    },
+  ];
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <ArtifactLibrary items={[]} documents={documents} onDelete={vi.fn()} />
+    </MemoryRouter>,
+  );
+  const rowText = (title: string) => screen.getByRole('link', { name: title }).closest('li')?.textContent ?? '';
+  expect(rowText('Plan in OneDrive')).toContain('Microsoft 365 · 버전 1');
+  expect(rowText('Plan in Docs')).toContain('Google Docs · 버전 2');
 });
 
 it('shows received reports and deliveries as read-only shared rows', () => {

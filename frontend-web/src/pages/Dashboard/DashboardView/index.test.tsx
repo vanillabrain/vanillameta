@@ -248,6 +248,8 @@ it('keeps a former owner with content and impact403 blocked without stale data, 
   expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7')).toHaveLength(1);
   expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7/delete-impact')).toHaveLength(1);
   expect(screen.queryByRole('button', { name: '삭제 영향 확인' })).toBeNull();
+  expect(api.get.mock.calls.filter(([path]) => path.includes('/comments'))).toHaveLength(0);
+  expect(screen.queryByRole('button', { name: /댓글/ })).toBeNull();
   expect(api.del).not.toHaveBeenCalled();
   expect(api.post).not.toHaveBeenCalled();
   expect(screen.queryByText('현재 경로 /dashboard')).toBeNull();
@@ -470,4 +472,19 @@ it('rejects a missing dashboard ID before showing empty state or mounting real a
   expect(screen.queryByText(emptyDashboard.title)).toBeNull();
   expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7']);
   expect(api.post).not.toHaveBeenCalled();
+});
+
+it('loads dashboard comments with a loaded dashboard and opens the header panel', async () => {
+  const loadDashboard = api.get.getMockImplementation();
+  api.get.mockImplementation(async (path, ...rest) =>
+    path === '/dashboards/7/comments'
+      ? { data: { revision: 'b'.repeat(64), canManage: true, blockAnchors: true, blocks: [], threads: [] } }
+      : loadDashboard?.(path, ...rest),
+  );
+  show();
+  await screen.findByText('Local dashboard 7');
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/dashboards/7/comments', undefined, expect.anything()));
+  click('댓글');
+  expect(await screen.findByText('아직 댓글이 없습니다.')).toBeTruthy();
+  expect(screen.getByRole('complementary', { name: '댓글' })).toBeTruthy();
 });

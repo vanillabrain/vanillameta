@@ -37,6 +37,11 @@ export const commandSchema = z
       z.object({ mode: z.literal('capture'), capture: captureSchema, previewDigest: hash }).strict(),
       z.object({ mode: z.literal('retain'), fromRevision: hash }).strict(),
     ]),
+    appliedSuggestionIds: z
+      .array(z.string().uuid())
+      .max(20)
+      .refine(value => new Set(value).size === value.length)
+      .optional(),
   })
   .strict();
 export type ReportCommand = z.infer<typeof commandSchema>;
@@ -144,7 +149,11 @@ export const reportApi = {
   },
   async save(id: string, command: ReportCommand) {
     return z
-      .object({ report: reportSchema, replayed: z.boolean() })
+      .object({
+        report: reportSchema,
+        replayed: z.boolean(),
+        appliedSuggestionIds: z.array(z.string().uuid()).default([]),
+      })
       .parse((await post('/reports/' + id + '/save', commandSchema.parse(command), options)).data);
   },
   async outcome(id: string, requestId: string, dashboardId: number) {

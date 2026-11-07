@@ -10,6 +10,7 @@ import { reportSharingApi, ReportLibraryItem } from '../Reports/reportSharingApi
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Button } from '@/components/ui/button';
+import { AnalysisChoice, analysisModeGroupClassName } from '@/components/analysis/AnalysisUi';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus, Plug } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -249,6 +250,13 @@ function Dashboard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const hubEmpty =
+    view === 'active' &&
+    emptyLibrary &&
+    documentsQuery.data?.documents.length === 0 &&
+    filesQuery.data?.length === 0 &&
+    reportLibrary.retained !== null &&
+    reportLibrary.retained.data.items.length === 0;
   const supplementaryLoading = view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching);
   const supplementaryError =
     view === 'active' && (documentsQuery.isError || filesQuery.isError) ? t('artifact.supplementaryError') : '';
@@ -324,24 +332,36 @@ function Dashboard() {
         <>
           <PageTitleBox
             title={title}
-            className="mx-auto max-w-[1280px] gap-6 lg:px-12 lg:py-8"
+            className="gap-6 lg:py-8"
             button={
-              hubScope === 'shared' ? undefined : (
-                <MenuButton
-                  menuList={menuList}
-                  handleSelect={handleMenuSelect}
-                  icon={<Plus />}
-                  title={t('list.addDashboard')}
-                  className="h-10 min-w-[160px] w-auto px-4"
-                />
-              )
+              <>
+                {hubScope === 'mine' && view === 'active' && (
+                  <FileUploadDialog
+                    onSaved={() => {
+                      void queryClient.invalidateQueries({ queryKey: ['artifact-hub', 'files', authScope] });
+                    }}
+                  />
+                )}
+                {hubScope !== 'shared' && (
+                  <MenuButton
+                    menuList={menuList}
+                    handleSelect={handleMenuSelect}
+                    icon={<Plus />}
+                    title={t('list.addDashboard')}
+                    className="h-10 min-w-[160px] w-auto px-4"
+                  />
+                )}
+              </>
             }
           >
-            <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
-              <Button asChild variant="outline" className="h-10">
+            <nav className="flex min-w-0 flex-wrap items-center gap-2" aria-label={t('artifact.shortcuts')}>
+              <Button asChild variant="outline" size="sm">
+                <Link to={artifactLink('/reports')}>{t('artifact.privateReports')}</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
                 <Link to={artifactLink('/documents')}>{t('docConnection.title')}</Link>
               </Button>
-              <Button asChild variant="outline" className="h-10">
+              <Button asChild variant="outline" size="sm">
                 <Link to="/ai-connections">
                   <Plug />
                   {t('aiConnections.title')}
@@ -351,39 +371,25 @@ function Dashboard() {
                 <Link to="/organizations">{t('artifact.organization')}</Link>
               </Button>
               <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
-            </div>
-            {hubScope === 'mine' && view === 'active' && (
-              <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
-                <FileUploadDialog
-                  onSaved={() => {
-                    void queryClient.invalidateQueries({ queryKey: ['artifact-hub', 'files', authScope] });
-                  }}
-                />
-                <span className="text-xs text-muted-foreground">{t('fileArtifact.hubHint')}</span>
-              </div>
-            )}
+            </nav>
             <div>
-              <div className="mb-4 flex min-w-0 flex-wrap gap-2" role="group" aria-label={t('artifact.scopeLabel')}>
-                <Button
-                  type="button"
-                  className="h-10"
-                  variant={hubScope === 'mine' ? 'default' : 'outline'}
-                  aria-pressed={hubScope === 'mine'}
-                  onClick={() => setHubScope('mine')}
-                >
-                  {t('artifact.mine')}
-                </Button>
-                <Button
-                  type="button"
-                  className="h-10"
-                  variant={hubScope === 'shared' ? 'default' : 'outline'}
-                  aria-pressed={hubScope === 'shared'}
-                  onClick={() => setHubScope('shared')}
-                >
-                  {t('artifact.sharedWithMe')}
-                </Button>
-              </div>
               <ArtifactLibrary
+                scopeControl={
+                  <div role="group" aria-label={t('artifact.scopeLabel')} className={analysisModeGroupClassName}>
+                    <AnalysisChoice
+                      label={t('artifact.mine')}
+                      selected={hubScope === 'mine'}
+                      onClick={() => setHubScope('mine')}
+                      className="border-0"
+                    />
+                    <AnalysisChoice
+                      label={t('artifact.sharedWithMe')}
+                      selected={hubScope === 'shared'}
+                      onClick={() => setHubScope('shared')}
+                      className="border-0"
+                    />
+                  </div>
+                }
                 key={authScope ?? 'unavailable-session'}
                 items={hubScope === 'shared' ? [] : loadedDashboardData}
                 scope={hubScope}
@@ -461,12 +467,12 @@ function Dashboard() {
             )}
             <details
               key={authScope ?? 'unavailable-session'}
-              open={emptyLibrary}
+              open={hubEmpty}
               className="rounded-xl border border-border bg-muted/30 p-5"
             >
               <summary className="cursor-pointer text-sm font-medium">{t('artifact.startAnalysis')}</summary>
               <div className="mt-5">
-                <GettingStarted returning={!emptyLibrary} />
+                <GettingStarted returning={!hubEmpty} />
               </div>
             </details>
           </PageTitleBox>

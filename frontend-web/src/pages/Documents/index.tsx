@@ -69,9 +69,8 @@ function DocumentsList({ scope }: { scope: string | null }) {
     <DocumentFrame title={t('docConnection.title')} headingRef={headingRef}>
       {integrations && (!integrations.microsoft || !integrations.sheets) && (
         <p role="status" className="text-sm text-muted-foreground">
-          외부 연동 · Google 문서 {integrations.googleDocs ? '사용 가능' : '설정 필요'} · Microsoft
-          {integrations.microsoft ? '사용 가능' : '설정 필요'} · Sheets
-          {integrations.sheets ? '사용 가능' : '설정 필요'}
+          외부 연동 · Google 문서 {integrations.googleDocs ? '사용 가능' : '설정 필요'} · Microsoft{' '}
+          {integrations.microsoft ? '사용 가능' : '설정 필요'} · Sheets {integrations.sheets ? '사용 가능' : '설정 필요'}
         </p>
       )}
       {state.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
@@ -108,16 +107,20 @@ function DocumentsList({ scope }: { scope: string | null }) {
           ) : (
             <ul className="divide-y rounded-xl border">
               {state.data.documents.map(document => (
-                <li key={document.id} className="flex items-center justify-between gap-6 p-5">
+                <li key={document.id} className="p-5">
                   <div className="min-w-0">
                     <h2 className="flex items-center gap-2 font-medium">
-                      <FileText />
-                      <Link className="underline" to={link(`/documents/${document.id}`)}>
+                      <FileText aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                      <Link
+                        className="min-w-0 break-words underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                        to={link(`/documents/${document.id}`)}
+                      >
                         {document.title}
                       </Link>
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {document.role === 'recipient' && <strong>받은 문서 · </strong>}
+                      {t(`docConnection.provider_${document.provider}`)} ·{' '}
                       {t(document.connected ? 'docConnection.connected' : 'docConnection.disconnected')} ·{' '}
                       {document.currentVersion
                         ? t('docConnection.version', { version: document.currentVersion })
@@ -127,9 +130,6 @@ function DocumentsList({ scope }: { scope: string | null }) {
                       {t('docConnection.updatedAt')} {new Date(document.updatedAt).toLocaleString()}
                     </p>
                   </div>
-                  <Button asChild variant="outline" className="h-10">
-                    <Link to={link(`/documents/${document.id}`)}>{t('docConnection.open')}</Link>
-                  </Button>
                 </li>
               ))}
             </ul>

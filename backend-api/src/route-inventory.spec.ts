@@ -34,6 +34,24 @@ const ANONYMOUS_ROUTES: Record<string, string> = {
   'GET /reuse-links/:kind/:uuid': 'reuse availability for a link, reveals no data',
   'GET /studio/publications/:token':
     'public Studio publication read; StudioPublicationGuard lets it through without an Authorization header',
+  'GET /artifacts/shared/:token':
+    'file artifact share link capability: 43-char token, sha256 match, active share (ArtifactsService.shared)',
+  'GET /artifacts/shared/:token/content':
+    'same share link capability as GET /artifacts/shared/:token',
+  'ALL /mcp':
+    'remote MCP; OAuth bearer checked in the handler (401 + WWW-Authenticate), Host/Origin pinned',
+  'GET /.well-known/oauth-authorization-server/v1/mcp-oauth':
+    'RFC 8414 OAuth server metadata, public by design, no user data',
+  'GET /.well-known/oauth-protected-resource/v1/mcp':
+    'RFC 9728 protected resource metadata, public by design, no user data',
+  'GET /mcp-oauth/.well-known/oauth-authorization-server':
+    'RFC 8414 OAuth server metadata behind McpPublicHttpGuard (Host/Origin), no user data',
+  'GET /mcp-oauth/authorize':
+    'OAuth authorize start behind McpPublicHttpGuard; consent itself needs a web login (McpConsentHttpGuard)',
+  'POST /mcp-oauth/token':
+    'OAuth code exchange behind McpPublicHttpGuard; form only, single-use code with PKCE S256',
+  'POST /mcp-oauth/revoke':
+    'OAuth token revocation behind McpPublicHttpGuard; form only, affects only the presented token',
 };
 
 /**

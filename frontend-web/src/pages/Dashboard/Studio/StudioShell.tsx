@@ -20,7 +20,6 @@ export type StudioProductContext = {
   sourceMeta: string;
   period: string;
   blockCount: number;
-  canvasTitle: string;
   canvasDescription: string;
   dataLabel: string;
   notice: string;
@@ -377,7 +376,7 @@ export default function StudioShell({
               <div className="studio-canvas">
                 <div className="studio-canvas-title">
                   <div>
-                    <h2>{product ? product.canvasTitle : '매출·환불 한눈에 보기'}</h2>
+                    {!product && <h2>매출·환불 한눈에 보기</h2>}
                     <p>{product ? product.canvasDescription : '성과를 확인하고, 변화가 생긴 채널을 살펴보세요.'}</p>
                   </div>
                   <span className="studio-live-label">{product ? product.dataLabel : '가상 데이터'}</span>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
+import CommentNotificationBell, { CommentNotificationProvider } from '@/components/comments/CommentNotificationBell';
 import ProfileViewButton from '@/components/user/ProfileViewButton';
 import Logout from '@/components/user/Logout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,33 +37,37 @@ function Header() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 bg-background max-sm:h-[108px]">
-      <nav className="flex h-full items-center justify-between relative flex-wrap gap-x-4 px-4 max-sm:pb-12 sm:flex-nowrap sm:gap-x-8 sm:px-6">
-        <Logo className="shrink-0" />
-        <div className="hidden sm:contents">
-          <NavBar navItems={navItems} />
-          <div className="flex items-center gap-4">
-            <Select value={language} onValueChange={value => i18n.changeLanguage(value)}>
-              <SelectTrigger
-                size="sm"
-                aria-label={t('common.language')}
-                className="w-fit border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ko">한국어</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-              </SelectContent>
-            </Select>
-            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} className="shrink-0" />
-            <ProfileViewButton />
+      <CommentNotificationProvider>
+        <nav className="flex h-full items-center justify-between relative flex-wrap gap-x-4 px-4 max-sm:pb-12 sm:flex-nowrap sm:gap-x-8 sm:px-6">
+          <Logo className="shrink-0" />
+          <div className="hidden sm:contents">
+            <NavBar navItems={navItems} />
+            <div className="flex items-center gap-4">
+              <Select value={language} onValueChange={value => i18n.changeLanguage(value)}>
+                <SelectTrigger
+                  size="sm"
+                  aria-label={t('common.language')}
+                  className="w-fit border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ko">한국어</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
+              <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} className="shrink-0" />
+              <CommentNotificationBell className="shrink-0" />
+              <ProfileViewButton />
+            </div>
           </div>
-        </div>
-        <div className="contents sm:hidden">
-          <NavBar navItems={navItems} />
-          <Logout className="ml-auto text-xs text-muted-foreground" />
-        </div>
-      </nav>
+          <div className="contents sm:hidden">
+            <NavBar navItems={navItems} />
+            <CommentNotificationBell className="ml-auto shrink-0" />
+            <Logout className="text-xs text-muted-foreground" />
+          </div>
+        </nav>
+      </CommentNotificationProvider>
       <Separator className="absolute inset-x-0 bottom-0" />
     </header>
   );

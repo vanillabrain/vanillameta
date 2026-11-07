@@ -11,7 +11,7 @@ export default function Reports() {
   return (
     <main className="private-reports bg-background text-foreground">
       <nav className="report-toolbar">
-        <Link to={navigation.listHref}>Artifact 허브로 돌아가기</Link>
+        <Link to={navigation.listHref}>아티팩트로 돌아가기</Link>
         <Button variant="outline" className="h-10" onClick={reload}>
           목록 새로고침
         </Button>
@@ -19,7 +19,7 @@ export default function Reports() {
       <h1>내 보고서</h1>
       <p className="text-muted-foreground">
         작성한 본문과 저장 당시의 숫자를 함께 보존합니다. 새 보고서는 본인이 소유한 저장 Studio에서 시작하세요. 받은 보고서는
-        Artifact 허브에서 확인할 수 있습니다.
+        아티팩트 목록의 공유받음에서 확인할 수 있습니다.
       </p>
       {state.kind === 'loading' && <p role="status">보고서를 불러오는 중입니다.</p>}
       {state.kind === 'error' && <p role="alert">{state.message}</p>}

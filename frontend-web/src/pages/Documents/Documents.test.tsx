@@ -139,7 +139,7 @@ it('allows explicit reload after list failure', async () => {
   await screen.findByRole('alert');
   await user.click(screen.getByRole('button', { name: 'Reload' }));
   await screen.findByRole('link', { name: 'Quarterly plan' });
-  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Google documents' })));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Linked documents' })));
 });
 it('does not steal focus moved elsewhere while document reload is pending', async () => {
   let finish: (value: typeof list) => void = () => undefined;

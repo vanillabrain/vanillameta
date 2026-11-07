@@ -10,6 +10,11 @@ export class ReportDelivery {
   @Column({ type: 'integer' }) organizationId: number;
   @Column({ type: 'boolean' }) active: boolean;
   @Column({ type: 'integer' }) relationVersion: number;
+  /**
+   * relationVersion when the relation last became readable again (first share, share after revoke,
+   * or after an owner/recipient auth reset). Comment notifications older than this stay hidden.
+   */
+  @Column({ type: 'integer', default: 0 }) activatedRelationVersion: number;
   @Column({ type: 'integer' }) pinnedVersion: number;
   @Column({ type: 'varchar', length: 64 }) pinnedHash: string;
   @Column({ type: 'integer' }) ownerAuthVersion: number;
@@ -38,6 +43,8 @@ export class ReportDeliveryReceipt {
   @Column({ type: 'varchar', length: 36 }) reportId: string;
   @Column({ type: 'varchar', length: 64 }) payloadHash: string;
   @Column({ type: 'text' }) result: string;
+  @Column({ type: 'varchar', length: 36, nullable: true }) aiGrantId: string | null;
+  @Column({ type: 'varchar', length: 100, nullable: true }) aiClientName: string | null;
   @ManyToOne(() => PrivateReport, { onDelete: 'RESTRICT', nullable: false })
   @JoinColumn({ name: 'reportId', foreignKeyConstraintName: 'FK_report_delivery_receipt_head' })
   head: PrivateReport;

@@ -1,4 +1,5 @@
-import { readMcpConfig } from './config';
+import { productionConfigProblems } from '../config/production-guard';
+import { MCP_SCOPES, mcpAccessTtlSeconds, readMcpConfig } from './config';
 describe('MCP canonical configuration', () => {
   const env = {
     NODE_ENV: 'local',
@@ -56,7 +57,7 @@ describe('MCP canonical configuration', () => {
       }),
     ).toBeNull();
   });
-  it('rejects write scope, duplicate client IDs and unbounded registration', () => {
+  it('rejects unknown scopes, duplicate client IDs and unbounded registration', () => {
     const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
     expect(
       readMcpConfig({ ...env, MCP_OAUTH_CLIENTS_JSON: JSON.stringify([client, client]) }),
@@ -67,5 +68,54 @@ describe('MCP canonical configuration', () => {
         MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: ['publish'] }]),
       }),
     ).toBeNull();
+    expect(
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: ['shares:delete'] }]),
+      }),
+    ).toBeNull();
+  });
+  it('accepts every published scope once and changes the fingerprint with the allowlist', () => {
+    const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
+    const all = readMcpConfig({
+      ...env,
+      MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: [...MCP_SCOPES] }]),
+    });
+    expect(all.clients[0].scopes).toEqual([...MCP_SCOPES]);
+    expect(all.fingerprint).not.toBe(readMcpConfig(env).fingerprint);
+    expect(
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify([
+          { ...client, scopes: [...MCP_SCOPES, 'reports:read'] },
+        ]),
+      }),
+    ).toBeNull();
+  });
+  it('clamps the test access TTL outside prod, ignores it in prod and keeps it out of the fingerprint', () => {
+    const ttl = (NODE_ENV: string, value?: string) =>
+      mcpAccessTtlSeconds({ NODE_ENV, MCP_OAUTH_ACCESS_TTL_SECONDS: value });
+    expect(ttl('local')).toBe(600);
+    expect(ttl('local', '360')).toBe(360);
+    expect(ttl('test', '5')).toBe(60);
+    expect(ttl('dev', '3600')).toBe(600);
+    expect(ttl('local', '1.5')).toBe(600);
+    expect(ttl('local', 'abc')).toBe(600);
+    expect(ttl('prod', '120')).toBe(600);
+    expect(readMcpConfig({ ...env, MCP_OAUTH_ACCESS_TTL_SECONDS: '120' }).fingerprint).toBe(
+      readMcpConfig(env).fingerprint,
+    );
+  });
+  it('makes production-guard refuse the access TTL override in prod only', () => {
+    const problem = /MCP_OAUTH_ACCESS_TTL_SECONDS/;
+    expect(
+      productionConfigProblems({ NODE_ENV: 'prod', MCP_OAUTH_ACCESS_TTL_SECONDS: '600' }),
+    ).toEqual(expect.arrayContaining([expect.stringMatching(problem)]));
+    expect(productionConfigProblems({ NODE_ENV: 'prod' }).some(item => problem.test(item))).toBe(
+      false,
+    );
+    expect(
+      productionConfigProblems({ NODE_ENV: 'local', MCP_OAUTH_ACCESS_TTL_SECONDS: '60' }),
+    ).toEqual([]);
   });
 });
