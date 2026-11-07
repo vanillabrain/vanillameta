@@ -37,7 +37,7 @@ const groups = [
       ["조직 공유·재사용 실습", "team-reuse-walkthrough"],
       ["관리자용 AI 실행 환경", "agent-connection"],
       ["MCP 연결·직접 제작", "mcp"],
-      ["원격 MCP 연결 (준비 중)", "remote-mcp"],
+      ["원격 MCP 연결", "remote-mcp"],
     ],
   },
   {
