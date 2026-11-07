@@ -657,15 +657,26 @@ await kase('조직: admin 이 연결 코드로 새 계정을 viewer 로 추가�
   await fillStaffForm({ loginId: MEMBER.id, role: 'viewer', code: state.joinCode });
   await sleep(400);
   await clickWhenEnabled('직원 추가');
-  await waitText(new RegExp(MEMBER.id), 15000);
-  const t = await bodyText();
-  check(/viewer \(열람자\)/.test(t), `viewer 등급 표시 없음: ${t.slice(0, 200)}`);
+  // 화면 문구는 믿지 않는다: 동의 문구에 방금 입력한 ID 가 이미 들어 있어 서버가 처리하기 전에도 맞는다.
+  // 직원 목록 API 에 viewer 로 실제 등록될 때까지 기다린다.
+  const adminToken = await tokenFor(GUEST.id, GUEST.pw);
+  let entry;
+  for (const _ of Array.from({ length: 30 })) {
+    // 목록은 20명씩 페이지로 오므로 로그인 ID 로 검색한다(스택에 멤버가 쌓여도 첫 페이지에 의존하지 않는다).
+    const list = await api('GET', `/v1/enterprise/members?q=${encodeURIComponent(MEMBER.id)}`, undefined, adminToken);
+    const page1 = list.json?.entries ? list.json : list.json?.data;
+    entry = (page1?.entries || []).find(e => e.userId === MEMBER.id);
+    if (entry) break;
+    await sleep(500);
+  }
+  check(entry, `직원 목록에 ${MEMBER.id} 가 등록되지 않음`);
+  check(entry.role === 'viewer', `viewer 로 등록되어야 함: ${entry.role}`);
 });
 
 await kase('등급: viewer 는 읽을 수 있고 쓰기는 ROLE_FORBIDDEN 이다', async () => {
   const token = await tokenFor(MEMBER.id, MEMBER.pw);
   const read = await api('GET', '/v1/dashboard', undefined, token);
-  check(read.status === 200, `viewer 읽기 ${read.status}`);
+  check(read.status === 200, `viewer 읽기 ${read.status} ${JSON.stringify(read.json).slice(0, 240)}`);
   const write = await api('POST', '/v1/dashboard', { title: 'x', layout: [] }, token);
   check(write.status === 403 && /ROLE_FORBIDDEN/.test(JSON.stringify(write.json)), `viewer 쓰기 기대 403 ROLE_FORBIDDEN, 실제 ${write.status}`);
   const admin = await api('PATCH', '/v1/enterprise/members/1', { role: 'admin', expectedVersion: 1 }, token);
@@ -684,7 +695,7 @@ await kase('등급: viewer 로 로그인하면 아티팩트 목록은 열린다'
 
 await kase('등급: admin 이 editor 로 바꾸면 같은 토큰의 쓰기가 등급을 통과한다', async () => {
   const guestToken = await tokenFor(GUEST.id, GUEST.pw);
-  const list = await api('GET', '/v1/enterprise/members', undefined, guestToken);
+  const list = await api('GET', `/v1/enterprise/members?q=${encodeURIComponent(MEMBER.id)}`, undefined, guestToken);
   check(list.status === 200, `직원 목록 ${list.status}`);
   const page1 = list.json?.entries ? list.json : list.json?.data;
   const entries = page1?.entries || [];
