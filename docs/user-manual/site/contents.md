@@ -30,6 +30,7 @@
 - [조직 공유와 권한](./organization.md) · [직원 공유·재사용 실습](./team-reuse-walkthrough.md)
 - [관리자용 AI 실행 환경](./agent-connection.md)
 - [외부 에이전트의 MCP 연결](./mcp.md)
+- [원격 MCP 연결 (준비 중)](./remote-mcp.md)
 
 ## 상세 참고
 
