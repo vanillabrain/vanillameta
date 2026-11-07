@@ -194,7 +194,9 @@ it('offers dashboard reading by default and dashboard writing and deleting only 
     (within(read).getByRole('checkbox', { name: 'Read dashboards I created and their change history' }) as HTMLInputElement)
       .checked,
   ).toBe(true);
-  const editing = within(write).getByRole('checkbox', { name: 'Create, edit and restore my dashboards' }) as HTMLInputElement;
+  const editing = within(write).getByRole('checkbox', {
+    name: 'Create, edit and restore my dashboards',
+  }) as HTMLInputElement;
   const deleting = within(write).getByRole('checkbox', { name: 'Delete my dashboards' }) as HTMLInputElement;
   expect([editing.checked, deleting.checked]).toEqual([false, false]);
   const text = (box: HTMLInputElement) => document.getElementById(box.getAttribute('aria-describedby') ?? '')?.textContent;

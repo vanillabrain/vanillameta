@@ -26,7 +26,7 @@ export default {
     dashboardsRead: 'Read dashboards I created and their change history',
     dashboardsWrite: 'Create, edit and restore my dashboards',
     dashboardsWriteWarning:
-      'The AI can read aggregated values from my sources to create my dashboards, edit their title, layout, display and filters, remove blocks and restore an earlier saved state. Every change is kept in the history with the AI connection\'s name, and the earlier state can be restored.',
+      "The AI can read aggregated values from my sources to create my dashboards, edit their title, layout, display and filters, remove blocks and restore an earlier saved state. Every change is kept in the history with the AI connection's name, and the earlier state can be restored.",
     dashboardsDelete: 'Delete my dashboards',
     dashboardsDeleteWarning:
       'The AI can delete dashboards I created. A dashboard that is still shared, granted or published is not deleted, but a deleted dashboard cannot be brought back. Confirm each delete request in the connected AI.',
