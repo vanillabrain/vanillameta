@@ -72,6 +72,8 @@ jobs:
       - name: PostgreSQL bootstrap and lock contract
         run: npm test -- --runInBand migrate-prod.postgres.spec.ts
         env:
+          # Entities pick timestamp over datetime only when this is postgres (or NODE_ENV is not test/local).
+          METADATA_DB_TYPE: postgres
           VM_MIGRATE_PROD_POSTGRES_HOST: 127.0.0.1
           VM_MIGRATE_PROD_POSTGRES_PORT: 5432
           VM_MIGRATE_PROD_POSTGRES_USER: postgres

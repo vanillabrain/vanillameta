@@ -72,8 +72,7 @@ export async function callCodingAgent(
     for (const key of ['PATH', 'HOME', 'CODEX_HOME', 'AI_CODEX_API_KEY']) {
       if (process.env[key] !== undefined) env[key] = process.env[key];
     }
-    if (process.env.AI_CODEX_BASE_URL && !env.AI_CODEX_API_KEY)
-      env.AI_CODEX_API_KEY = 'local';
+    if (process.env.AI_CODEX_BASE_URL && !env.AI_CODEX_API_KEY) env.AI_CODEX_API_KEY = 'local';
     const configuredTimeout = Number(process.env.AI_TIMEOUT_MS);
     const timeoutMs =
       Number.isFinite(configuredTimeout) && configuredTimeout > 0

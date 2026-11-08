@@ -4,7 +4,8 @@ import { migrateProd } from './migrate-prod';
 import { PostgresBaseline1793500000000 } from '../migrations/postgres/1793500000000-postgres-baseline';
 
 // Explicit opt-in against a throwaway PostgreSQL database; every run uses its own schema.
-// Example: VM_MIGRATE_PROD_POSTGRES_PORT=55432 VM_MIGRATE_PROD_POSTGRES_PASSWORD=... npm test -- migrate-prod.postgres
+// Example: METADATA_DB_TYPE=postgres VM_MIGRATE_PROD_POSTGRES_PORT=55432 VM_MIGRATE_PROD_POSTGRES_PASSWORD=... npm test -- migrate-prod.postgres
+// METADATA_DB_TYPE=postgres is required: under NODE_ENV=test the entities otherwise pick the datetime column type.
 const enabled = Boolean(process.env.VM_MIGRATE_PROD_POSTGRES_PORT);
 const suite = enabled ? describe : describe.skip;
 
@@ -41,12 +42,15 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
     username: process.env.VM_MIGRATE_PROD_POSTGRES_USER || 'postgres',
     password: process.env.VM_MIGRATE_PROD_POSTGRES_PASSWORD,
     database,
-    ...(schema ? { schema } : {}),
+    // migrate-prod reads and writes unqualified tables and expects the connection's search_path to be
+    // its schema, so the schema option alone (which only qualifies TypeORM's own statements) is not enough.
+    ...(schema ? { schema, extra: { options: `-c search_path=${schema},public` } } : {}),
   });
 
   async function connect(schema: string, migrations: Array<new () => MigrationInterface>) {
     const dataSource = new DataSource({
       ...connection(schema),
+      uuidExtension: 'pgcrypto' as const, // as in src/common/metadata-database.ts
       entities: [__dirname + '/../**/*.entity.ts'],
       migrations,
       synchronize: false,
@@ -160,7 +164,8 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
 
   it('leaves no partial migration history when recording fails midway', async () => {
     class Unrecordable1999000000003 implements MigrationInterface {
-      name = 'U'.repeat(300) + '1999000000003';
+      // PostgreSQL rejects a NUL character in text, so recording this name fails (the column has no length limit).
+      name = 'Bad\u0000Name' + '1999000000003';
       async up() {
         // The failure occurs while the migration name is recorded.
       }
@@ -173,7 +178,9 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
       Unrecordable1999000000003,
     ]);
     try {
-      await expect(migrateProd(db)).rejects.toThrow();
+      // Pin the cause: the NUL name is rejected by PostgreSQL while recording inside the one transaction,
+      // after the first migration's row was inserted. Any other error would make the count check vacuous.
+      await expect(migrateProd(db)).rejects.toThrow(/0x00/);
       const [{ count }] = await db.query('SELECT COUNT(*) AS count FROM migrations');
       expect(Number(count)).toBe(0);
       await expect(migrateProd(db)).rejects.toThrow(/no recorded migrations/);

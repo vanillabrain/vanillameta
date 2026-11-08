@@ -18,8 +18,15 @@ export class AddDocumentShare1793540000000 implements MigrationInterface {
             { name: 'revokedAt', type: 'varchar', length: '30', isNullable: true },
           ],
           indices: [
-            new TableIndex({ name: 'UQ_document_share_grantee', columnNames: ['documentId', 'granteeId'], isUnique: true }),
-            new TableIndex({ name: 'IDX_document_share_grantee', columnNames: ['granteeId', 'organizationId', 'active'] }),
+            new TableIndex({
+              name: 'UQ_document_share_grantee',
+              columnNames: ['documentId', 'granteeId'],
+              isUnique: true,
+            }),
+            new TableIndex({
+              name: 'IDX_document_share_grantee',
+              columnNames: ['granteeId', 'organizationId', 'active'],
+            }),
           ],
         }),
       );
@@ -29,4 +36,3 @@ export class AddDocumentShare1793540000000 implements MigrationInterface {
     throw new Error('document_share rollback requires a reviewed backup plan.');
   }
 }
-
