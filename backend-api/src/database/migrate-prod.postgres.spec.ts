@@ -41,7 +41,9 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
     username: process.env.VM_MIGRATE_PROD_POSTGRES_USER || 'postgres',
     password: process.env.VM_MIGRATE_PROD_POSTGRES_PASSWORD,
     database,
-    ...(schema ? { schema } : {}),
+    // migrate-prod reads and writes unqualified tables and expects the connection's search_path to be
+    // its schema, so the schema option alone (which only qualifies TypeORM's own statements) is not enough.
+    ...(schema ? { schema, extra: { options: `-c search_path=${schema},public` } } : {}),
   });
 
   async function connect(schema: string, migrations: Array<new () => MigrationInterface>) {
@@ -71,6 +73,8 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
 
   beforeAll(async () => {
     admin = await new DataSource(connection()).initialize();
+    // A real database has uuid-ossp in public; without it the first test's schema would receive it.
+    await admin.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public');
   });
 
   afterAll(async () => {
@@ -160,7 +164,8 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
 
   it('leaves no partial migration history when recording fails midway', async () => {
     class Unrecordable1999000000003 implements MigrationInterface {
-      name = 'U'.repeat(300) + '1999000000003';
+      // PostgreSQL rejects a NUL character in text, so recording this name fails (the column has no length limit).
+      name = 'Bad\u0000Name' + '1999000000003';
       async up() {
         // The failure occurs while the migration name is recorded.
       }
