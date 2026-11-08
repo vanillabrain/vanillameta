@@ -696,11 +696,43 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
         {} as never,
         {} as never,
         {} as never,
-        { assertGrant } as any,
+        { assertGrant, revalidate: jest.fn() } as any,
         {} as never,
         access,
         service,
       );
+    });
+
+    it('applies the grade to every comment tool, read and write, on every call', async () => {
+      const setRole = (role: string) =>
+        db.manager.update(EnterpriseMembership, { userId: owner.id }, { role: role as any });
+      try {
+        // A role the table does not know (a stale value) allows nothing, as for the write tools.
+        await setRole('stale-role');
+        const reads = [
+          code(mcp.listCommentable(principal(owner) as any, 0)),
+          code(mcp.outline(principal(owner) as any, 1)),
+          code(mcp.threads(principal(owner) as any, 1, 0)),
+        ];
+        expect(await Promise.all(reads)).toEqual(['FORBIDDEN', 'FORBIDDEN', 'FORBIDDEN']);
+        expect(await code(add(owner, '1'))).toBe('FORBIDDEN');
+        expect(
+          await code(
+            mcp.reply(principal(owner) as any, {
+              dashboardId: 1,
+              threadId: randomUUID(),
+              body: 'x',
+              requestId: randomUUID(),
+            }),
+          ),
+        ).toBe('FORBIDDEN');
+        // A viewer may read and comment, so the grade check does not over-block.
+        await setRole('viewer');
+        expect(await code(mcp.outline(principal(owner) as any, 1))).toBe('OK');
+        expect(await code(add(owner, '1'))).toBe('OK');
+      } finally {
+        await setRole('admin');
+      }
     });
 
     it('lists only live, ungoverned dashboards of the grant organization that pass the read check, as an allowlist', async () => {
@@ -728,7 +760,8 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
         ),
       ).toEqual([1, 2]);
       expect((await mcp.listCommentable(principal(otherOrg, 2) as any, 0)).dashboards).toEqual([]);
-      expect((await mcp.listCommentable(principal(owner, 2) as any, 0)).dashboards).toEqual([]);
+      // A principal naming an organization its account does not belong to has no grade there.
+      expect(await code(mcp.listCommentable(principal(owner, 2) as any, 0))).toBe('FORBIDDEN');
       await db.manager.update(Dashboard, 3, { delYn: 'Y' });
       await db.manager.update(Dashboard, 2, { assetActive: false });
       expect(

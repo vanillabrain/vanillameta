@@ -18,7 +18,7 @@
 | DCOM-06 | 390(전체 시트)·768(우측 시트)·1440(고정 패널)에서 가로 넘침 없음 | PASS | `06a/b/c-owner-panel-*.png` |
 | DCOM-07 | 키보드: 머리글·차트 버튼 포커스 링, 머리글 버튼으로 열면 포커스가 패널로 이동하고 Escape로 닫히며 버튼으로 복귀 | PASS(수정 후) | `07a-…`, `07b-…`, 페이지 내 실행 결과 |
 | DCOM-08 | 권한 없는 사용자는 권한 없음 안내만 보고 댓글 UI 없음 | PASS | `08-reader-no-grant-1440.png` |
-| DCOM-09 | 2조각 원격 MCP(2026-11-04). 실제 Claude Code 2.1.317: 임시 프로젝트 등록 → 로그인 요청 범위에 `dashboards:read` 포함 → 승인 화면에서 "대시보드 제목과 차트 구성 읽기(데이터 값 제외)" 기본 체크, 쓰기는 댓글만 허용 → `vm_list_dashboards`(대시보드 6만) → `vm_read_dashboard`(차트 2개, SQL·데이터 값 없음) → `vm_add_dashboard_comment`로 첫 차트 블록 댓글 → 소유자 웹 패널에 "차트 · QA Sales Studio Verification" 스레드, 작성자 "Claude · Claude Code (로컬 검증)". 검증 후 logout·등록 제거 | PASS | `dashboard-mcp-20261104/01-consent-1440.png`, `02-owner-dashboard-claude-comment-1440.png`, `claude-code-run.jsonl` |
+| DCOM-09 | 2조각 원격 MCP(2026-11-04). 실제 Claude Code 2.1.317: 임시 프로젝트 등록 → 로그인 요청 범위에 `dashboards:read` 포함 → 승인 화면에서 "대시보드 제목과 차트 구성 읽기(데이터 값 제외)" 기본 체크, 쓰기는 댓글만 허용 → `vm_list_dashboards`(대시보드 6만) → `vm_read_dashboard`(차트 2개, SQL·데이터 값 없음) → `vm_add_dashboard_comment`로 첫 차트 블록 댓글 → 소유자 웹 패널에 "차트 · QA Sales Studio Verification" 스레드, 작성자 "Claude · Claude Code (로컬 검증)". 검증 후 logout·등록 제거 | PASS | `dashboard-mcp-20261104/01-consent-1440.png`, `02-owner-dashboard-claude-comment-1440.png`, `claude-code-run.jsonl` 이 결과는 도구 이름 `vm_list_dashboards`·`vm_read_dashboard`와 동의 문구를 바꾸기 전의 것이다(2026-11-08에 `vm_list_commentable_dashboards`·`vm_read_dashboard_outline`으로 이름을 바꾸고 `dashboards:read` 문구를 넓혔다). 바뀐 이름·문구로는 실제 Claude Code 호스트에서 다시 확인하지 않았다: NOT_RUN. |
 
 API 상태(`api-status-summary.txt`): 목록 GET 200, 권한 부여 전 403 1회, 생성 POST 201×2, 답글 201, 상태 변경 201.
 

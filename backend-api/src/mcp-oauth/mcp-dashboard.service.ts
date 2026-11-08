@@ -55,11 +55,18 @@ export class McpDashboardService {
     private readonly comments: DashboardCommentService,
   ) {}
 
-  /** Scope, then a live token and membership, then the grade; each is read on every call. */
-  private async begin(principal: McpOAuthPrincipal, scope: DashboardScope) {
-    if (!principal.scopes.includes(scope)) throw new ForbiddenException();
+  /**
+   * Scope, then a live token and membership, then the grade; each is read on every call. Several
+   * scopes (a comment tool needs dashboards:read and a comment scope) must all be approved and each
+   * one's grade capability must be allowed.
+   */
+  private async begin(principal: McpOAuthPrincipal, scope: McpScope | McpScope[]) {
+    const scopes = Array.isArray(scope) ? scope : [scope];
+    if (!scopes.length || scopes.some(item => !principal.scopes.includes(item)))
+      throw new ForbiddenException();
     await this.auth.revalidate(principal);
-    await assertGradeAllows(this.db.manager, principal, MCP_SCOPE_POLICY[scope].capability);
+    for (const item of scopes)
+      await assertGradeAllows(this.db.manager, principal, MCP_SCOPE_POLICY[item].capability);
   }
 
   private dashboardId(value: unknown): number {
@@ -560,6 +567,9 @@ export class McpDashboardService {
     return {
       beforeAccess: async manager => {
         await this.auth.assertGrant(manager, principal, scopes);
+        // The grade is read inside the writing transaction, like the report comment tools do.
+        for (const item of scopes)
+          await assertGradeAllows(manager, principal, MCP_SCOPE_POLICY[item].capability);
       },
       ai: { grantId: principal.grantId, clientName: principal.clientName },
       expectedOrganizationId: principal.organizationId,
@@ -574,6 +584,7 @@ export class McpDashboardService {
    * by that check can still have a next page.
    */
   async listCommentable(principal: McpOAuthPrincipal, afterId: number) {
+    await this.begin(principal, 'dashboards:read');
     const grants = await this.access.readableDashboardIds(principal.actorId);
     const owners = this.db
       .getRepository(UserMapping)
@@ -636,13 +647,15 @@ export class McpDashboardService {
     };
   }
 
-  outline(principal: McpOAuthPrincipal, dashboardId: number) {
+  async outline(principal: McpOAuthPrincipal, dashboardId: number) {
+    await this.begin(principal, 'dashboards:read');
     return this.comments.outline(String(dashboardId), this.commentActor(principal), {
       expectedOrganizationId: principal.organizationId,
     });
   }
 
   async threads(principal: McpOAuthPrincipal, dashboardId: number, threadOffset: number) {
+    await this.begin(principal, ['dashboards:read', 'comments:read']);
     const result = await this.comments.list(String(dashboardId), this.commentActor(principal), {
       expectedOrganizationId: principal.organizationId,
     });

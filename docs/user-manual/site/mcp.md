@@ -27,13 +27,14 @@ claude mcp add --transport http --client-id <운영자가 알려 준 id> --callb
 | 권한 | 도구 | 하는 일 |
 | --- | --- | --- |
 | `dashboards:read` | `vm_list_dashboards`, `vm_read_dashboard` | **내가 만든** 대시보드와 변경 이력 읽기 (공유받은 것은 제외) |
+| `dashboards:read` | `vm_list_commentable_dashboards`, `vm_read_dashboard_outline` | 공유받은 것을 포함해 **내가 읽을 수 있는** 대시보드의 제목과 차트 구성 읽기 (데이터 값 제외, 댓글을 달 때 씁니다) |
 | `dashboards:write` | `vm_list_metrics`, `vm_preview_dashboard`, `vm_create_dashboard`, `vm_update_dashboard`, `vm_restore_dashboard` | 소스의 저장 지표 찾기, 저장 지표로 미리보기·만들기, 제목·배치·표시·필터 수정과 블록 삭제, 이전 저장본으로 되돌리기 |
 | `dashboards:delete` | `vm_get_dashboard_removal`, `vm_remove_dashboard` | 사용처가 없는 내 대시보드 삭제 (되돌릴 수 없음) |
 | `sources:read` | `vm_list_sources`, `vm_describe_source` | 소스 이름과 열 이름·타입 (원본 행은 제외) |
 | `documents:read` | `vm_list_documents`, `vm_read_document` | 내 보관 문서 읽기 |
 | `reports:read` | `vm_list_reports`, `vm_read_report` | 내 보고서와 공유받은 보고서 읽기 |
-| `comments:read` | `vm_list_comments` | 볼 수 있는 댓글 스레드와 제안 읽기 |
-| `comments:write` | `vm_add_comment`, `vm_reply_comment` | 댓글과 답글 쓰기. 작성자는 "Claude · 클라이언트 이름"으로 표시 |
+| `comments:read` | `vm_list_comments`, `vm_list_dashboard_comments` | 볼 수 있는 댓글 스레드와 제안 읽기 (대시보드 댓글은 `dashboards:read`도 필요) |
+| `comments:write` | `vm_add_comment`, `vm_reply_comment`, `vm_add_dashboard_comment`, `vm_reply_dashboard_comment` | 댓글과 답글 쓰기 (대시보드 댓글은 `dashboards:read`도 필요). 작성자는 "Claude · 클라이언트 이름"으로 표시 |
 | `suggestions:write` | `vm_propose_report_edit` | 본문 범위 수정 **제안**하기 |
 | `shares:write` | `vm_list_report_shares`, `vm_share_report` | 내가 소유한 보고서를 같은 조직 구성원 1~5명에게 읽기 전용 공유 |
 
