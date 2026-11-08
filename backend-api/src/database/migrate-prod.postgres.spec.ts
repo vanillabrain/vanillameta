@@ -4,7 +4,8 @@ import { migrateProd } from './migrate-prod';
 import { PostgresBaseline1793500000000 } from '../migrations/postgres/1793500000000-postgres-baseline';
 
 // Explicit opt-in against a throwaway PostgreSQL database; every run uses its own schema.
-// Example: VM_MIGRATE_PROD_POSTGRES_PORT=55432 VM_MIGRATE_PROD_POSTGRES_PASSWORD=... npm test -- migrate-prod.postgres
+// Example: METADATA_DB_TYPE=postgres VM_MIGRATE_PROD_POSTGRES_PORT=55432 VM_MIGRATE_PROD_POSTGRES_PASSWORD=... npm test -- migrate-prod.postgres
+// METADATA_DB_TYPE=postgres is required: under NODE_ENV=test the entities otherwise pick the datetime column type.
 const enabled = Boolean(process.env.VM_MIGRATE_PROD_POSTGRES_PORT);
 const suite = enabled ? describe : describe.skip;
 
@@ -49,6 +50,7 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
   async function connect(schema: string, migrations: Array<new () => MigrationInterface>) {
     const dataSource = new DataSource({
       ...connection(schema),
+      uuidExtension: 'pgcrypto' as const, // as in src/common/metadata-database.ts
       entities: [__dirname + '/../**/*.entity.ts'],
       migrations,
       synchronize: false,
@@ -73,8 +75,6 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
 
   beforeAll(async () => {
     admin = await new DataSource(connection()).initialize();
-    // A real database has uuid-ossp in public; without it the first test's schema would receive it.
-    await admin.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public');
   });
 
   afterAll(async () => {
@@ -178,7 +178,9 @@ suite('migrateProd on an empty and an existing PostgreSQL schema', () => {
       Unrecordable1999000000003,
     ]);
     try {
-      await expect(migrateProd(db)).rejects.toThrow();
+      // Pin the cause: the NUL name is rejected by PostgreSQL while recording inside the one transaction,
+      // after the first migration's row was inserted. Any other error would make the count check vacuous.
+      await expect(migrateProd(db)).rejects.toThrow(/0x00/);
       const [{ count }] = await db.query('SELECT COUNT(*) AS count FROM migrations');
       expect(Number(count)).toBe(0);
       await expect(migrateProd(db)).rejects.toThrow(/no recorded migrations/);
