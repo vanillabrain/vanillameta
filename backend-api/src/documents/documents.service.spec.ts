@@ -618,7 +618,9 @@ describe('Document persistence on real SQLite', () => {
     const listed = (await service.list(member)).documents as Array<{ id: string; role?: string }>;
     expect(listed.map(item => item.id)).toContain(documentId);
     expect(listed.find(item => item.id === documentId)?.role).toBe('recipient');
-    expect(((await service.list(actor)).documents as Array<{ role?: string }>)[0].role).toBe('owner');
+    expect(((await service.list(actor)).documents as Array<{ role?: string }>)[0].role).toBe(
+      'owner',
+    );
     await service.share(actor, documentId, { recipientId: 2, active: false });
     expect((await service.list(member)).documents).toHaveLength(0);
   });

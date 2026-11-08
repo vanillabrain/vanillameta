@@ -11,7 +11,10 @@ const idFrom = (value: string) => {
 };
 const verifier = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...Array.from(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(String.fromCharCode(...Array.from(bytes)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 };
 
 export default function SheetsImport() {
@@ -28,14 +31,22 @@ export default function SheetsImport() {
   React.useEffect(() => {
     if (!code) return;
     const raw = sessionStorage.getItem(PENDING);
-    const pending = raw ? (JSON.parse(raw) as { state: string; verifier: string; spreadsheetId: string; range: string; name: string }) : null;
+    const pending = raw
+      ? (JSON.parse(raw) as { state: string; verifier: string; spreadsheetId: string; range: string; name: string })
+      : null;
     if (!pending || pending.state !== params.get('state')) {
       setError('승인 요청을 찾지 못했습니다. 처음부터 다시 시도해 주세요.');
       return;
     }
     setBusy(true);
     documentService
-      .sheetsImport({ code, verifier: pending.verifier, spreadsheetId: pending.spreadsheetId, range: pending.range, name: pending.name })
+      .sheetsImport({
+        code,
+        verifier: pending.verifier,
+        spreadsheetId: pending.spreadsheetId,
+        range: pending.range,
+        name: pending.name,
+      })
       .then(value => {
         sessionStorage.removeItem(PENDING);
         setResult(value as { databaseId: number; name: string; rowCount: number });
@@ -71,28 +82,48 @@ export default function SheetsImport() {
       {result ? (
         <section aria-label="등록 결과" className="mt-4 rounded-xl border p-5">
           <h2 className="font-semibold">{result.name}</h2>
-          <p className="text-sm">데이터소스 #{result.databaseId} · {result.rowCount.toLocaleString()}행</p>
+          <p className="text-sm">
+            데이터소스 #{result.databaseId} · {result.rowCount.toLocaleString()}행
+          </p>
           <Button asChild className="mt-3 h-10" variant="outline">
             <Link to="/data/file">파일 데이터에서 열기</Link>
           </Button>
         </section>
       ) : code ? (
-        <p role="status" className="mt-4">{busy ? '시트를 등록하는 중입니다…' : error}</p>
+        <p role="status" className="mt-4">
+          {busy ? '시트를 등록하는 중입니다…' : error}
+        </p>
       ) : (
         <div className="mt-4 grid max-w-xl gap-4">
           <label className="grid gap-1 text-sm">
             시트 주소 또는 ID
-            <input className="h-10 rounded-md border bg-background px-3" value={sheet} onChange={event => setSheet(event.target.value)} />
+            <input
+              className="h-10 rounded-md border bg-background px-3"
+              value={sheet}
+              onChange={event => setSheet(event.target.value)}
+            />
           </label>
           <label className="grid gap-1 text-sm">
             범위
-            <input className="h-10 rounded-md border bg-background px-3" value={range} onChange={event => setRange(event.target.value)} />
+            <input
+              className="h-10 rounded-md border bg-background px-3"
+              value={range}
+              onChange={event => setRange(event.target.value)}
+            />
           </label>
           <label className="grid gap-1 text-sm">
             데이터소스 이름
-            <input className="h-10 rounded-md border bg-background px-3" value={name} onChange={event => setName(event.target.value)} />
+            <input
+              className="h-10 rounded-md border bg-background px-3"
+              value={name}
+              onChange={event => setName(event.target.value)}
+            />
           </label>
-          {error && <p role="alert" className="text-sm">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm">
+              {error}
+            </p>
+          )}
           <Button className="h-10 justify-self-start" disabled={busy} onClick={start}>
             {busy ? '이동 중…' : 'Google로 승인하고 가져오기'}
           </Button>
@@ -101,8 +132,11 @@ export default function SheetsImport() {
           </Link>
         </div>
       )}
-      {error && code && <p role="alert" className="mt-2 text-sm">{error}</p>}
+      {error && code && (
+        <p role="alert" className="mt-2 text-sm">
+          {error}
+        </p>
+      )}
     </DocumentFrame>
   );
 }
-

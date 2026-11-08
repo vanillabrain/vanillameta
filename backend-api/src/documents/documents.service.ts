@@ -245,7 +245,9 @@ export class DocumentsService {
             where: { id: In(sharedIds), organizationId },
             order: { updatedAt: 'DESC' },
           });
-          documents.push(...shared.map(document => summary(document, actor.authVersion, 'recipient')));
+          documents.push(
+            ...shared.map(document => summary(document, actor.authVersion, 'recipient')),
+          );
         }
       }
       return {

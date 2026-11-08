@@ -12,4 +12,3 @@ export class AddDocumentProvider1793530000000 implements MigrationInterface {
     throw new Error('document provider rollback requires a reviewed backup plan.');
   }
 }
-
