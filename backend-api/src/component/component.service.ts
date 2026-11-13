@@ -61,15 +61,18 @@ export class ComponentService {
       return cachedResult.data;
     }
 
-    const components = await this.componentRepository
-      .createQueryBuilder('component')
+    // Quote aliases with the driver's own quoting: a MySQL backtick is a syntax error on PostgreSQL,
+    // and an unquoted `componentType` would come back there as `componenttype`.
+    const query = this.componentRepository.createQueryBuilder('component');
+    const q = (name: string) => query.escape(name);
+    const components = await query
       .select([
         'id',
-        'type as componentType',
+        `type as ${q('componentType')}`,
         'title',
         'description',
         'category',
-        'component.option as `option`',
+        `component.option as ${q('option')}`,
         'icon',
         'seq',
       ])
