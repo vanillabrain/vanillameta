@@ -16,7 +16,7 @@
   "license": "ISC",
   "devDependencies": {
     "eslint": "^7.31.0",
-    "prettier": "^2.8.1",
+    "prettier": "^3.9.10",
     "eslint-config-airbnb": "^19.0.4",
     "vite": "^8.3.1",
     "@vitejs/plugin-react": "^6.1.1",
