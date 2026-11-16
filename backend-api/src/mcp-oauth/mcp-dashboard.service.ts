@@ -18,7 +18,7 @@ import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.s
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import type { McpScope } from './config';
-import { DashboardScope, MCP_SCOPE_POLICY } from './scope-policy';
+import { MCP_SCOPE_POLICY } from './scope-policy';
 import { assertGradeAllows } from './grade';
 import { applyChanges, cleanChanges } from './mcp-dashboard.changes';
 import { DashboardToolException, toDashboardFailure } from './mcp-dashboard.errors';

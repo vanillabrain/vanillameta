@@ -431,6 +431,12 @@ describe('remote MCP tools/list per scope', () => {
       );
       expect(instructions).toContain('dashboards:write lists the saved metrics (vm_list_metrics)');
       expect(instructions).toContain('never on ones shared with them');
+      expect(instructions).toContain(
+        'With dashboards:read alone, vm_list_commentable_dashboards and vm_read_dashboard_outline also cover dashboards shared with the user',
+      );
+      expect(instructions).toContain(
+        '(vm_list_dashboard_comments) additionally needs comments:read',
+      );
       expect(instructions).toContain('vm_read_dashboard or vm_list_dashboards');
       expect(instructions).toContain(
         'Only with the shares:write scope, and only for reports the user owns',

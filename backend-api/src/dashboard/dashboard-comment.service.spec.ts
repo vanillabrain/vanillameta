@@ -39,6 +39,7 @@ import { deleteDashboardComments } from './dashboard-comment-cleanup';
 import { DashboardCommentService } from './dashboard-comment.service';
 import { PersonalLibraryState } from './entities/personal-library-state.entity';
 import { McpDashboardService } from '../mcp-oauth/mcp-dashboard.service';
+import * as gradeModule from '../mcp-oauth/grade';
 import { mcpError } from '../mcp-oauth/mcp-server';
 
 const owner = { id: 1, authVersion: 0 },
@@ -703,7 +704,7 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
       );
     });
 
-    it('applies the grade to every comment tool, read and write, on every call', async () => {
+    it('refuses a role the table does not know on every comment tool and still lets a viewer read and comment', async () => {
       const setRole = (role: string) =>
         db.manager.update(EnterpriseMembership, { userId: owner.id }, { role: role as any });
       try {
@@ -732,6 +733,48 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
         expect(await code(add(owner, '1'))).toBe('OK');
       } finally {
         await setRole('admin');
+      }
+    });
+
+    it('calls the grade check for every scope of every comment tool, inside the writing transaction for writes', async () => {
+      // A stale role is also refused by the catalog actor context, so the role fixture cannot show that the
+      // grade check itself ran. Assert the calls instead: removing one makes this fail.
+      const spy = jest.spyOn(gradeModule, 'assertGradeAllows');
+      const capabilities = () => spy.mock.calls.map(call => call[2]);
+      const managers = () => spy.mock.calls.map(call => call[0]);
+      try {
+        await mcp.listCommentable(principal(owner) as any, 0);
+        expect(capabilities()).toEqual(['read']);
+        expect(managers()).toEqual([db.manager]);
+
+        spy.mockClear();
+        await mcp.outline(principal(owner) as any, 1);
+        expect(capabilities()).toEqual(['read']);
+
+        spy.mockClear();
+        await mcp.threads(principal(owner) as any, 1, 0);
+        expect(capabilities()).toEqual(['read', 'read']);
+
+        spy.mockClear();
+        await add(owner, '1');
+        expect(capabilities()).toEqual(['read', 'comment']);
+        // The write reads the grade on the transaction's manager, not on the pool.
+        expect(managers().every(manager => manager !== db.manager)).toBe(true);
+
+        spy.mockClear();
+        // The thread does not exist, so the write is refused after the grade was read.
+        await code(
+          mcp.reply(principal(owner) as any, {
+            dashboardId: 1,
+            threadId: randomUUID(),
+            body: 'x',
+            requestId: randomUUID(),
+          }),
+        );
+        expect(capabilities()).toEqual(['read', 'comment']);
+        expect(managers().every(manager => manager !== db.manager)).toBe(true);
+      } finally {
+        spy.mockRestore();
       }
     });
 
