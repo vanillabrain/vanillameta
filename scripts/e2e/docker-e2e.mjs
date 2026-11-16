@@ -981,9 +981,37 @@ await kase('MCP: 대시보드 범위는 기본 해제이고, 읽기만 승인하
   const conn = await connectClient('dashboards:read dashboards:write dashboards:delete', { expectWriteUnchecked: true });
   check(/dashboards:read/.test(conn.scope) && !/dashboards:write|dashboards:delete/.test(conn.scope), `읽기만 승인되어야 함: ${conn.scope}`);
   const names = ((await rpc('tools/list', {}, conn.access)).json?.result?.tools || []).map(t => t.name).sort();
-  check(JSON.stringify(names) === JSON.stringify(['vm_list_dashboards', 'vm_read_dashboard']), `읽기 범위의 도구가 정확하지 않음: ${names.join(',')}`);
+  // dashboards:read opens two groups: the dashboards I created (list/read) and the comment-discovery pair for dashboards shared with me.
+  check(JSON.stringify(names) === JSON.stringify(['vm_list_commentable_dashboards', 'vm_list_dashboards', 'vm_read_dashboard', 'vm_read_dashboard_outline']), `읽기 범위의 도구가 정확하지 않음: ${names.join(',')}`);
   const mine = await tool(conn, 'vm_list_dashboards');
   check(!mine.isError && (mine.data?.dashboards || []).some(d => d.dashboardId === state.dashboardId), `내 대시보드 목록에 #${state.dashboardId} 가 없음: ${mine.text}`);
+});
+
+await kase('MCP: 읽을 수 있는 대시보드의 구조를 보고 댓글을 남기고 다시 읽는다(댓글 도구는 쓰기 도구와 따로 열린다)', async () => {
+  const conn = await connectClient('dashboards:read comments:read comments:write', { approveAll: true });
+  // comments:* also open the report comment tools, so compare the dashboard tools only.
+  const names = ((await rpc('tools/list', {}, conn.access)).json?.result?.tools || []).map(t => t.name).filter(name => /dashboard/.test(name)).sort();
+  const expected = ['vm_add_dashboard_comment', 'vm_list_commentable_dashboards', 'vm_list_dashboard_comments', 'vm_list_dashboards', 'vm_read_dashboard', 'vm_read_dashboard_outline', 'vm_reply_dashboard_comment'];
+  check(JSON.stringify(names) === JSON.stringify(expected), `댓글 범위의 도구가 정확하지 않음: ${names.join(',')}`);
+  check(!names.includes('vm_create_dashboard') && !names.includes('vm_remove_dashboard'), '댓글 범위에 쓰기·삭제 도구가 보임');
+  const listed = await tool(conn, 'vm_list_commentable_dashboards');
+  check(!listed.isError && (listed.data?.dashboards || []).some(d => d.dashboardId === state.dashboardId), `댓글을 달 수 있는 목록에 #${state.dashboardId} 가 없음: ${listed.text}`);
+  const outline = await tool(conn, 'vm_read_dashboard_outline', { dashboardId: state.dashboardId });
+  check(!outline.isError && /^[a-f0-9]{64}$/.test(outline.data?.revision || ''), `구조 읽기 실패: ${outline.text}`);
+  check(!/SELECT|FROM /i.test(JSON.stringify(outline.data)), '구조에 쿼리 문장이 들어 있음');
+  const body = `MCP 댓글 ${Math.floor(Math.random() * 1e6)}`;
+  const requestId = crypto.randomUUID();
+  const add = args => tool(conn, 'vm_add_dashboard_comment', { dashboardId: state.dashboardId, revision: outline.data.revision, anchor: { kind: 'whole' }, body, requestId, confirmWrite: true, ...args });
+  const first = await add();
+  check(!first.isError, `댓글 쓰기 실패: ${first.text}`);
+  const again = await add();
+  // A retry returns the first write's result and marks it replayed; it must not create a second thread.
+  check(!again.isError && again.data?.replayed === true && again.data?.resultId === first.data?.resultId, `같은 요청 ID 재시도가 첫 결과를 재생하지 않음: ${again.text}`);
+  const threads = await tool(conn, 'vm_list_dashboard_comments', { dashboardId: state.dashboardId });
+  check(!threads.isError && JSON.stringify(threads.data).includes(body), `쓴 댓글이 목록에 없음: ${threads.text}`);
+  check(JSON.stringify(threads.data).split(body).length - 1 === 1, `같은 댓글이 한 번보다 많이 쓰임: ${threads.text.slice(0, 200)}`);
+  const unconfirmed = await tool(conn, 'vm_add_dashboard_comment', { dashboardId: state.dashboardId, revision: outline.data.revision, anchor: { kind: 'whole' }, body: 'x', requestId: crypto.randomUUID() });
+  check(unconfirmed.isError || unconfirmed.status >= 400, 'confirmWrite 없이 댓글이 쓰였음');
 });
 
 await kase('MCP: 저장 지표를 찾아 미리보기하고, 같은 값으로 대시보드를 만들면 앱 목록에 열린다', async () => {
