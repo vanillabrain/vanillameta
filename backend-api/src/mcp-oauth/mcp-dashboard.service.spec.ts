@@ -101,6 +101,8 @@ describe('McpDashboardService', () => {
       creation as never,
       auth as never,
       deletion as never,
+      {} as never,
+      {} as never,
     );
   });
   afterAll(async () => db?.destroy());

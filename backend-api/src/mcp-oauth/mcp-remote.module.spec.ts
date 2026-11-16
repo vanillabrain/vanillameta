@@ -6,11 +6,13 @@ jest.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: jest.fn(
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { DashboardModule } from '../dashboard/dashboard.module';
+import { DashboardCommentService } from '../dashboard/dashboard-comment.service';
 import { DashboardDeletionService } from '../dashboard/dashboard-deletion.service';
 import { StudioModule } from '../dashboard-studio/studio.module';
 import { StudioCreationService } from '../dashboard-studio/studio-creation.service';
 import { StudioService } from '../dashboard-studio/studio.service';
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { SourceAccessService } from '../ownership/source-access.service';
 import { SourceOwnershipModule } from '../ownership/source-ownership.module';
 import { McpDashboardService } from './mcp-dashboard.service';
 import { McpOAuthModule } from './mcp-oauth.module';
@@ -36,6 +38,8 @@ describe('McpRemoteModule wiring for the dashboard tools', () => {
       StudioCreationService,
       McpOAuthService,
       DashboardDeletionService,
+      SourceAccessService,
+      DashboardCommentService,
     ]);
     const imported = meta(McpRemoteModule, 'imports');
     const reachable = new Set<unknown>([

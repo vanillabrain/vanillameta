@@ -91,15 +91,25 @@ const SECRETS = [
   'pinnedHash',
 ];
 const WRITE_TOOLS = ['vm_add_comment', 'vm_reply_comment', 'vm_propose_report_edit'];
+/** Dashboard comment tools need dashboards:read together with comments:read or comments:write. */
+const DASHBOARD_COMMENT_TOOLS = {
+  'comments:read': ['vm_list_dashboard_comments'],
+  'comments:write': ['vm_add_dashboard_comment', 'vm_reply_dashboard_comment'],
+};
 const TOOLS_BY_SCOPE: Record<McpScope, string[]> = {
   'sources:read': ['vm_describe_source', 'vm_list_sources'],
   'documents:read': ['vm_list_documents', 'vm_read_document'],
+  'dashboards:read': [
+    'vm_list_commentable_dashboards',
+    'vm_list_dashboards',
+    'vm_read_dashboard',
+    'vm_read_dashboard_outline',
+  ],
   'reports:read': ['vm_list_reports', 'vm_read_report'],
   'comments:read': ['vm_list_comments'],
   'comments:write': ['vm_add_comment', 'vm_reply_comment'],
   'suggestions:write': ['vm_propose_report_edit'],
   'shares:write': ['vm_list_report_shares', 'vm_share_report'],
-  'dashboards:read': ['vm_list_dashboards', 'vm_read_dashboard'],
   'dashboards:write': [
     'vm_create_dashboard',
     'vm_list_metrics',
@@ -329,10 +339,25 @@ describe('remote MCP tools/list per scope', () => {
     expect((await names([scope])).map(tool => tool.name).sort()).toEqual(TOOLS_BY_SCOPE[scope]);
   });
 
+  it('lists dashboard comment tools only with dashboards:read and the matching comment scope', async () => {
+    const tools = async (scopes: McpScope[]) =>
+      (await names(scopes)).map(tool => tool.name).filter(name => name.includes('dashboard'));
+    expect(await tools(['comments:read', 'comments:write'])).toEqual([]);
+    expect((await tools(['dashboards:read', 'comments:read'])).sort()).toEqual(
+      [...TOOLS_BY_SCOPE['dashboards:read'], ...DASHBOARD_COMMENT_TOOLS['comments:read']].sort(),
+    );
+    expect((await tools(['dashboards:read', 'comments:write'])).sort()).toEqual(
+      [...TOOLS_BY_SCOPE['dashboards:read'], ...DASHBOARD_COMMENT_TOOLS['comments:write']].sort(),
+    );
+  });
+
   it('combines scopes, marks writes non-destructive and idempotent, and exposes no apply/save/publish/delete/revoke tool', async () => {
     const tools = await names([...MCP_SCOPES]);
     expect(tools.map(tool => tool.name).sort()).toEqual(
-      Object.values(TOOLS_BY_SCOPE).flat().sort(),
+      [
+        ...Object.values(TOOLS_BY_SCOPE).flat(),
+        ...Object.values(DASHBOARD_COMMENT_TOOLS).flat(),
+      ].sort(),
     );
     // The report and document tools never save, apply, publish or revoke; the dashboard tools are the
     // ones the dashboards:* scopes name, and no others.
@@ -406,6 +431,12 @@ describe('remote MCP tools/list per scope', () => {
       );
       expect(instructions).toContain('dashboards:write lists the saved metrics (vm_list_metrics)');
       expect(instructions).toContain('never on ones shared with them');
+      expect(instructions).toContain(
+        'With dashboards:read alone, vm_list_commentable_dashboards and vm_read_dashboard_outline also cover dashboards shared with the user',
+      );
+      expect(instructions).toContain(
+        '(vm_list_dashboard_comments) additionally needs comments:read',
+      );
       expect(instructions).toContain('vm_read_dashboard or vm_list_dashboards');
       expect(instructions).toContain(
         'Only with the shares:write scope, and only for reports the user owns',
@@ -1164,6 +1195,8 @@ describe('remote MCP report tools with real SQLite transactions', () => {
       {} as never,
       creation as never,
       auth,
+      {} as never,
+      {} as never,
       {} as never,
     );
     const { call } = await clientFor(owner, ['dashboards:read', 'dashboards:write'], dashboards);

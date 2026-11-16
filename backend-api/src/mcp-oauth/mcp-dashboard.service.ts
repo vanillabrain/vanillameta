@@ -1,6 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, LessThan } from 'typeorm';
+import { DataSource, EntityManager, In, LessThan } from 'typeorm';
+import {
+  DashboardCommentOptions,
+  DashboardCommentService,
+} from '../dashboard/dashboard-comment.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { PersonalLibraryState } from '../dashboard/entities/personal-library-state.entity';
 import { DashboardDeletionService } from '../dashboard/dashboard-deletion.service';
 import { DashboardDeleteReceipt } from '../dashboard/entities/dashboard-delete-receipt.entity';
 import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
@@ -8,9 +13,12 @@ import { StudioCreationService } from '../dashboard-studio/studio-creation.servi
 import { StudioService } from '../dashboard-studio/studio.service';
 import { studioDigest } from '../dashboard-studio/studio-legacy';
 import { Database } from '../database/entities/database.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
-import { DashboardScope, MCP_SCOPE_POLICY } from './scope-policy';
+import type { McpScope } from './config';
+import { MCP_SCOPE_POLICY } from './scope-policy';
 import { assertGradeAllows } from './grade';
 import { applyChanges, cleanChanges } from './mcp-dashboard.changes';
 import { DashboardToolException, toDashboardFailure } from './mcp-dashboard.errors';
@@ -18,6 +26,8 @@ import { ActorWindowLimiter, DASHBOARD_LIMITS } from './mcp-dashboard.limits';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 
 const LIST_PAGE = 50;
+const COMMENTABLE_PAGE = 50;
+const COMMENT_PAGE_BYTES = 192 * 1024;
 const HISTORY_PAGE = 20;
 const PREVIEW_ROWS = 100;
 const HEX64 = /^[a-f0-9]{64}$/;
@@ -41,13 +51,22 @@ export class McpDashboardService {
     private readonly creation: StudioCreationService,
     private readonly auth: McpOAuthService,
     private readonly deletion: DashboardDeletionService,
+    private readonly access: SourceAccessService,
+    private readonly comments: DashboardCommentService,
   ) {}
 
-  /** Scope, then a live token and membership, then the grade; each is read on every call. */
-  private async begin(principal: McpOAuthPrincipal, scope: DashboardScope) {
-    if (!principal.scopes.includes(scope)) throw new ForbiddenException();
+  /**
+   * Scope, then a live token and membership, then the grade; each is read on every call. Several
+   * scopes (a comment tool needs dashboards:read and a comment scope) must all be approved and each
+   * one's grade capability must be allowed.
+   */
+  private async begin(principal: McpOAuthPrincipal, scope: McpScope | McpScope[]) {
+    const scopes = Array.isArray(scope) ? scope : [scope];
+    if (!scopes.length || scopes.some(item => !principal.scopes.includes(item)))
+      throw new ForbiddenException();
     await this.auth.revalidate(principal);
-    await assertGradeAllows(this.db.manager, principal, MCP_SCOPE_POLICY[scope].capability);
+    for (const item of scopes)
+      await assertGradeAllows(this.db.manager, principal, MCP_SCOPE_POLICY[item].capability);
   }
 
   private dashboardId(value: unknown): number {
@@ -536,5 +555,164 @@ export class McpDashboardService {
     // No check after the commit: the grant and the grade were read inside the writing transaction,
     // and a failure here would report a write that happened as one that did not.
     return { dashboardId: id, revision: result.document.revision as string, changed: true };
+  }
+
+  // ---- Dashboard comments (read the structure and write comments on dashboards one can read) ----
+
+  private commentActor(principal: McpOAuthPrincipal) {
+    return { id: principal.actorId, authVersion: principal.authVersion };
+  }
+
+  private commentWrite(principal: McpOAuthPrincipal, scopes: McpScope[]): DashboardCommentOptions {
+    return {
+      beforeAccess: async manager => {
+        await this.auth.assertGrant(manager, principal, scopes);
+        // The grade is read inside the writing transaction, like the report comment tools do.
+        for (const item of scopes)
+          await assertGradeAllows(manager, principal, MCP_SCOPE_POLICY[item].capability);
+      },
+      ai: { grantId: principal.grantId, clientName: principal.clientName },
+      expectedOrganizationId: principal.organizationId,
+    };
+  }
+
+  /**
+   * Dashboards a person can comment on: their own plus those shared with them (not only ones they made, which
+   * `list` returns). Candidates are the actor's own dashboards and policy grants, narrowed in SQL to live,
+   * ungoverned dashboards whose single owner is in the grant's organization, then each one passes
+   * the same read check as the web list. nextAfterId is the last id examined, so a page emptied
+   * by that check can still have a next page.
+   */
+  async listCommentable(principal: McpOAuthPrincipal, afterId: number) {
+    await this.begin(principal, 'dashboards:read');
+    const grants = await this.access.readableDashboardIds(principal.actorId);
+    const owners = this.db
+      .getRepository(UserMapping)
+      .createQueryBuilder('owner')
+      .select('owner.dashboardId')
+      .groupBy('owner.dashboardId')
+      .having('COUNT(*) = 1');
+    const rows = await this.db
+      .getRepository(Dashboard)
+      .createQueryBuilder('dashboard')
+      .innerJoin(UserMapping, 'mapping', 'mapping.dashboardId = dashboard.id')
+      .innerJoin(EnterpriseMembership, 'membership', 'membership.userId = mapping.userInfoId')
+      .where(`dashboard.id IN (${owners.getQuery()})`)
+      .andWhere('membership.organizationId = :org', { org: principal.organizationId })
+      .andWhere('dashboard.id > :after', { after: afterId })
+      .andWhere("dashboard.delYn <> 'Y'")
+      .andWhere('dashboard.assetActive = :active', { active: true })
+      .andWhere('dashboard.governed = :governed', { governed: false })
+      .andWhere(
+        grants.length
+          ? '(mapping.userInfoId = :actor OR dashboard.id IN (:...grants))'
+          : 'mapping.userInfoId = :actor',
+        { actor: principal.actorId, grants },
+      )
+      .select(['dashboard.id', 'dashboard.title', 'dashboard.updatedAt'])
+      .orderBy('dashboard.id', 'ASC')
+      .take(COMMENTABLE_PAGE + 1)
+      .getMany();
+    const examined = rows.slice(0, COMMENTABLE_PAGE);
+    const visible: typeof examined = [];
+    for (const row of examined)
+      try {
+        await this.access.dashboard(row.id, principal.actorId, 'read');
+        visible.push(row);
+      } catch (error) {
+        if (!(error instanceof ForbiddenException)) throw error;
+      }
+    const archived = new Set(
+      visible.length
+        ? (
+            await this.db.manager.find(PersonalLibraryState, {
+              where: {
+                userId: principal.actorId,
+                organizationId: principal.organizationId,
+                dashboardId: In(visible.map(row => row.id)),
+                archived: true,
+              },
+            })
+          ).map(state => state.dashboardId)
+        : [],
+    );
+    return {
+      dashboards: visible.map(row => ({
+        dashboardId: row.id,
+        title: row.title,
+        updatedAt: row.updatedAt,
+        archived: archived.has(row.id),
+      })),
+      nextAfterId: rows.length > COMMENTABLE_PAGE ? examined[examined.length - 1].id : null,
+    };
+  }
+
+  async outline(principal: McpOAuthPrincipal, dashboardId: number) {
+    await this.begin(principal, 'dashboards:read');
+    return this.comments.outline(String(dashboardId), this.commentActor(principal), {
+      expectedOrganizationId: principal.organizationId,
+    });
+  }
+
+  async threads(principal: McpOAuthPrincipal, dashboardId: number, threadOffset: number) {
+    await this.begin(principal, ['dashboards:read', 'comments:read']);
+    const result = await this.comments.list(String(dashboardId), this.commentActor(principal), {
+      expectedOrganizationId: principal.organizationId,
+    });
+    const page: typeof result.threads = [];
+    let bytes = 0;
+    for (const thread of result.threads.slice(threadOffset)) {
+      const size = Buffer.byteLength(JSON.stringify(thread));
+      if (page.length && bytes + size > COMMENT_PAGE_BYTES) break;
+      page.push(thread);
+      bytes += size;
+    }
+    const next = threadOffset + page.length;
+    return {
+      dashboardId,
+      revision: result.revision,
+      canManage: result.canManage,
+      blockAnchors: result.blockAnchors,
+      threadOffset,
+      totalThreads: result.threads.length,
+      nextThreadOffset: next < result.threads.length ? next : null,
+      threads: page,
+    };
+  }
+
+  addComment(
+    principal: McpOAuthPrincipal,
+    input: {
+      dashboardId: number;
+      revision: string;
+      anchor: { kind: 'whole' } | { kind: 'block'; blockId: string };
+      body: string;
+      requestId: string;
+    },
+  ) {
+    return this.comments.createThread(
+      String(input.dashboardId),
+      {
+        requestId: input.requestId,
+        revision: input.revision,
+        anchor: input.anchor,
+        body: input.body,
+      },
+      this.commentActor(principal),
+      this.commentWrite(principal, ['dashboards:read', 'comments:write']),
+    );
+  }
+
+  reply(
+    principal: McpOAuthPrincipal,
+    input: { dashboardId: number; threadId: string; body: string; requestId: string },
+  ) {
+    return this.comments.reply(
+      String(input.dashboardId),
+      input.threadId,
+      { requestId: input.requestId, body: input.body },
+      this.commentActor(principal),
+      this.commentWrite(principal, ['dashboards:read', 'comments:write']),
+    );
   }
 }

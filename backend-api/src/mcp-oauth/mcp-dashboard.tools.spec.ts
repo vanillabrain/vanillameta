@@ -84,7 +84,12 @@ describe('dashboard tools of the remote MCP server', () => {
   it('lists a tool only for the scope that names it', async () => {
     const names = async (scopes: McpScope[]) =>
       (await open(scopes)).tools.map(tool => tool.name).sort();
-    expect(await names(['dashboards:read'])).toEqual(['vm_list_dashboards', 'vm_read_dashboard']);
+    expect(await names(['dashboards:read'])).toEqual([
+      'vm_list_commentable_dashboards',
+      'vm_list_dashboards',
+      'vm_read_dashboard',
+      'vm_read_dashboard_outline',
+    ]);
     expect(await names(['dashboards:write'])).toEqual([
       'vm_create_dashboard',
       'vm_list_metrics',
@@ -97,7 +102,8 @@ describe('dashboard tools of the remote MCP server', () => {
       'vm_remove_dashboard',
     ]);
     expect(await names(['sources:read'])).not.toContain('vm_remove_dashboard');
-    expect(await names(ALL)).toHaveLength(9);
+    // The nine dashboard tools plus the two comment-discovery tools that dashboards:read also opens.
+    expect(await names(ALL)).toHaveLength(11);
   });
 
   it('marks what removes or overwrites as destructive, and nothing reaches beyond this server', async () => {

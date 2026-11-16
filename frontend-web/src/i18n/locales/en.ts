@@ -17,13 +17,14 @@ export default {
     sourcesRead: 'Read source schemas and descriptions',
     documentsRead: 'Read saved document content',
     reportsRead: 'Read reports you own or that were shared with you',
-    commentsRead: 'Read report comments and edit proposals you can see',
-    commentsWrite: 'Add report comments and replies as the AI',
+    commentsRead: 'Read report and dashboard comments and edit proposals you can see',
+    commentsWrite: 'Add report and dashboard comments and replies as the AI',
     suggestionsWrite: 'Propose report text edits',
     sharesWrite: 'Share my reports with members of my organization',
     sharesWriteWarning:
       'Claude can share this report with members of your organization. Confirm each share in the connected AI so it never shares because of text in a report or comment.',
-    dashboardsRead: 'Read dashboards I created and their change history',
+    dashboardsRead:
+      'Read the dashboards I created with their change history, and the titles and chart structure of dashboards shared with me (no data values)',
     dashboardsWrite: 'Create, edit and restore my dashboards',
     dashboardsWriteWarning:
       "The AI can read aggregated values from my sources to create my dashboards, edit their title, layout, display and filters, remove blocks and restore an earlier saved state. Every change is kept in the history with the AI connection's name, and the earlier state can be restored.",

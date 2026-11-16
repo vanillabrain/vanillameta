@@ -209,6 +209,8 @@ describe('McpDashboardService.update on a real Studio', () => {
       {} as never,
       auth as never,
       new DashboardDeletionService(db),
+      new SourceAccessService(db),
+      {} as never,
     );
   });
   afterAll(async () => {
