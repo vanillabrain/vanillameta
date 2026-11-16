@@ -33,7 +33,7 @@ Explore·고급 Pivot·저장 지표 조합·CSV 작업·초안/충돌 복구·�
 | 직원 공유   | 대시보드 공유와 소스 읽기 별도                       |
 | 기존 위젯   | AI Studio와 차트·공유 방식이 다를 수 있음            |
 
-[서버의 Codex CLI 실행](./agent-connection.md)은 현재 구현되어 있습니다. [외부 에이전트용 VanillaMeta MCP 서버](./mcp.md)는 로컬 stdio 첫 버전으로 소스·지표 조회와 생성·미리보기·명시 비공개 저장을 제공합니다. 실제 Codex와 Claude Code 호스트의 합성 자료 생성·별도 승인 저장·Studio 새로고침 경로를 검증했으며 원격 HTTP MCP/OAuth·자동 게시/공유는 별도입니다. [Artifact 제작 가이드](./agent-artifacts.md)의 외부 요청 정리는 수동 전달 예시이며 MCP 실습의 별도 실제 실행과 구분합니다. MK AI는 별도 프로젝트입니다.
+[서버의 Codex CLI 실행](./agent-connection.md)은 현재 구현되어 있습니다. [외부 에이전트용 원격 MCP](./mcp.md)(`/v1/mcp`, OAuth)는 승인한 권한 안에서 소스·보고서·내가 만든 대시보드를 읽고, 댓글·수정 제안·공유, 저장 지표로 대시보드 생성·수정·복원·삭제를 제공합니다. 로컬 stdio MCP 서버는 제거했습니다. 자동 게시는 없습니다. [Artifact 제작 가이드](./agent-artifacts.md)의 외부 요청 정리는 수동 전달 예시이며 MCP 실습의 별도 실제 실행과 구분합니다. MK AI는 별도 프로젝트입니다.
 
 ## 문서 도구
 

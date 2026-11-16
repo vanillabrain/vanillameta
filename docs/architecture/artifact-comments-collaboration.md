@@ -1,6 +1,6 @@
 # 아티팩트 댓글·제안·MCP 협업 설계
 
-> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+> **2026-11-06:** 이 문서의 **로컬 stdio MCP 서버**(`mcp-server/`, `vm_propose_analysis`·`vm_save_analysis` 등) 부분은 제거된 서버의 기록이다. 원격 MCP(`/v1/mcp`)를 다루는 부분은 현재도 유효하다(`docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`).
 
 상태: 구현 완료 (2026-11-02, 1·2단계). 설계 확정 v2는 architect 검토를 반영했다. 첫 구현 대상은 비공개 보고서다. 검증과 알려진 공백은 [검증 기록](../testing/report-comments-collaboration.md)을 따른다.
 
@@ -119,6 +119,7 @@ type ReportAnchor =
 | `comments:write` | `vm_add_comment`, `vm_reply_comment` | 1 |
 | `suggestions:write` | `vm_propose_report_edit` | 1 |
 | `shares:write` | `vm_list_report_shares`, `vm_share_report` | 2 |
+| `dashboards:read` / `dashboards:write` / `dashboards:delete` | 대시보드 도구 9개(2026-11-06, 이 설계 밖: `docs/plans/ai-native-artifacts-1b.md`) | 1b |
 
 - 범위 목록은 `mcpScopeSchema` 하나에서 파생한다. 승인 요청 `scope` 길이 제한을 512로, 범위 개수 제한을 늘린다. 승인 화면은 범위→라벨 표를 쓰고 쓰기 범위를 기본 해제·구분 표시한다.
 - `vm_read_report`는 문서 텍스트를 절대 오프셋 페이지로 나누고 서로게이트 쌍을 자르지 않는다. 오프셋 단위(UTF-16)를 설명에 적는다.

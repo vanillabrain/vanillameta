@@ -39,5 +39,5 @@ AI의 제안은 아직 저장된 결과가 아닙니다. **미리보기에서 �
 [샘플로 첫 아티팩트 만들기 →](./quickstart.md)
 
 ::: details 외부 AI 에이전트에서 시작하고 싶다면
-Codex·Claude Code에서 연결하려면 [MCP 안내](./mcp.md)를 사용하세요. 직접 생성·미리보기·승인 저장 후 Studio에서 이어갑니다. 앱에서 시작하는 기본 실습에는 MCP 설정이 필요하지 않습니다. 서버의 AI 실행 환경은 [관리자 안내](./agent-connection.md)에서 다룹니다.
+Codex·Claude Code에서 연결하려면 [MCP 안내](./mcp.md)를 사용하세요. 저장 지표로 미리보기·생성한 뒤 Studio에서 이어갑니다. 앱에서 시작하는 기본 실습에는 MCP 설정이 필요하지 않습니다. 서버의 AI 실행 환경은 [관리자 안내](./agent-connection.md)에서 다룹니다.
 :::

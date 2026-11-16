@@ -60,10 +60,13 @@ export class DashboardWidgetService {
       .where('id in (:...ids)')
       .getQuery();
 
-    const result = await this.componentRepository
-      .createQueryBuilder('component')
-      .select(['widgetInfo.*', 'component.type as componentType'])
-      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+    // PostgreSQL folds unquoted identifiers to lower case, which would make `widgetInfo.*` miss the
+    // quoted join alias and `componentType` come back as `componenttype`. Quote them for every driver.
+    const query = this.componentRepository.createQueryBuilder('component');
+    const q = (name: string) => query.escape(name);
+    const result = await query
+      .select([`${q('widgetInfo')}.*`, `component.type as ${q('componentType')}`])
+      .innerJoin(widgetInfo, 'widgetInfo', `${q('widgetInfo')}.${q('componentId')} = component.id`)
       .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
       .getRawMany();
 

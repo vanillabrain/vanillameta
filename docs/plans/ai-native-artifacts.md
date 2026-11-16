@@ -1,6 +1,6 @@
 # 팀의 AI로 아티팩트를 다루는 VanillaMeta (설계 초안 2)
 
-> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+> **2026-11-06:** 이 문서의 **로컬 stdio MCP 서버**(`mcp-server/`, `vm_propose_analysis`·`vm_save_analysis` 등) 부분은 제거된 서버의 기록이다. 원격 MCP(`/v1/mcp`)를 다루는 부분은 현재도 유효하다(`docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`).
 
 상태: 초안 2. architect 검토를 반영했다. 구현 전이며 아직 아무 코드도 바꾸지 않았다. 9절의 결정 14개를 모두 사용자가 정했다. 구현 전에 한 번 더 정할 세부는 9절 끝의 "남은 세부"에 있다.
 

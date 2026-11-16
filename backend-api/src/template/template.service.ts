@@ -240,17 +240,20 @@ export class TemplateService {
       .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
-      .where('id in (:id)')
+      .where('id in (:...id)')
       .getQuery();
 
-    const widgetList = await this.componentRepository
-      .createQueryBuilder('component')
+    // Quote the aliases: PostgreSQL folds unquoted camelCase identifiers to lower case, so
+    // `componentType`/`componentCategory` would come back as `componenttype`/`componentcategory`.
+    const query = this.componentRepository.createQueryBuilder('component');
+    const q = (name: string) => query.escape(name);
+    const widgetList = await query
       .select([
         'widget.*',
-        'component.category as componentCategory',
-        'component.type as componentType',
+        `component.category as ${q('componentCategory')}`,
+        `component.type as ${q('componentType')}`,
       ])
-      .innerJoin(widgetInfo, 'widget', 'widget.componentId = component.id')
+      .innerJoin(widgetInfo, 'widget', `widget.${q('componentId')} = component.id`)
       .setParameter('id', widgets)
       .getRawMany();
 
@@ -281,10 +284,16 @@ export class TemplateService {
       .where('id in (:...ids)')
       .getQuery();
 
-    const widgetList = await this.componentRepository
-      .createQueryBuilder('component')
-      .select(['widgetInfo.*', 'component.type as componentType', 'component.category as category'])
-      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+    // Quote the subquery alias and the aliases read back (see findRecommendTemplates).
+    const query = this.componentRepository.createQueryBuilder('component');
+    const q = (name: string) => query.escape(name);
+    const widgetList = await query
+      .select([
+        `${q('widgetInfo')}.*`,
+        `component.type as ${q('componentType')}`,
+        `component.category as ${q('category')}`,
+      ])
+      .innerJoin(widgetInfo, 'widgetInfo', `${q('widgetInfo')}.${q('componentId')} = component.id`)
       .setParameter('ids', widgets)
       .getRawMany();
 
@@ -389,20 +398,31 @@ export class TemplateService {
         'template.description as description',
       ])
       .from(Template, 'template')
-      .where(`useYn = 'Y'`)
+      // `template.useYn` is resolved to the quoted column; a bare `useYn` is folded to `useyn` on PostgreSQL.
+      .where(`template.useYn = 'Y'`)
       .getQuery();
 
-    const templateComponentInfoList = await this.templateItemRepository
-      .createQueryBuilder('templateItems')
+    // Quote the aliases read back below: PostgreSQL would return `horizontalcnt`, `totalcnt`, ...
+    const query = this.templateItemRepository.createQueryBuilder('templateItems');
+    const q = (name: string) => query.escape(name);
+    const templateComponentInfoList = await query
       .select([
         'template.id as id',
         'template.title as title',
         'template.description as description',
-        `sum(case when templateItems.recommendCategory = 'HORIZONTAL' then 1 else 0 end) as horizontalCnt`,
-        `sum(case when templateItems.recommendCategory = 'VERTICAL' then 1 else 0 end) as verticalCnt`,
-        `sum(case when templateItems.recommendCategory = 'SQUARE' then 1 else 0 end) as squareCnt`,
-        `sum(case when templateItems.recommendCategory = 'SCORE' then 1 else 0 end) as scoreCnt`,
-        'sum(1) as totalCnt',
+        `sum(case when templateItems.recommendCategory = 'HORIZONTAL' then 1 else 0 end) as ${q(
+          'horizontalCnt',
+        )}`,
+        `sum(case when templateItems.recommendCategory = 'VERTICAL' then 1 else 0 end) as ${q(
+          'verticalCnt',
+        )}`,
+        `sum(case when templateItems.recommendCategory = 'SQUARE' then 1 else 0 end) as ${q(
+          'squareCnt',
+        )}`,
+        `sum(case when templateItems.recommendCategory = 'SCORE' then 1 else 0 end) as ${q(
+          'scoreCnt',
+        )}`,
+        `sum(1) as ${q('totalCnt')}`,
       ])
       .innerJoin(templates, 'template', 'template.id = templateItems.templateId')
       .groupBy('template.id')

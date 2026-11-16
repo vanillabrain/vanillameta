@@ -1,6 +1,6 @@
 # Figma Artifact 시나리오와 develop 구현 현황
 
-> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+> **2026-11-06:** 이 문서의 **로컬 stdio MCP 서버**(`mcp-server/`, `vm_propose_analysis`·`vm_save_analysis` 등) 부분은 제거된 서버의 기록이다. 원격 MCP(`/v1/mcp`)를 다루는 부분은 현재도 유효하다(`docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`).
 
 2026-10-29 KST. 코드 수정 없이 작성한 현황과 실행 순서다. 기준은 원격 fetch 후 일치한 develop `3b9c27afaed522b9227b8f34a2d978f2be297dcf`다. HEAD와 origin/develop 차이는 0/0이다.
 

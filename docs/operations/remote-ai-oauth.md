@@ -1,5 +1,7 @@
 # 외부 AI의 VM 연결 설정
 
+사내 서버에 올려 팀이 쓰게 하는 순서는 [사내 서버 체크리스트](./internal-server-ai-access.md)에 있다.
+
 이 연결은 외부 AI 클라이언트가 사용자가 승인한 조직의 소스 설명, 보관 문서, 보고서와 보고서 댓글을 읽고, 허용한 경우 보고서 댓글과 수정 제안을 남기고, 공유 권한까지 허용하면 소유한 보고서를 같은 조직 구성원에게 공유하도록 한다. AI 모델 API를 VM에 연결하는 설정이나 Google 원문 연결과 별개다.
 
 ## 서버 설정
@@ -39,7 +41,7 @@ access token은 10분 뒤 만료된다. code 교환과 갱신은 새 access toke
 - 모든 API 인스턴스는 같은 `TZ`(예: `UTC` 또는 `Asia/Seoul`)로 실행한다. 갱신 시각은 시간대 없는 timestamp로 저장되므로 인스턴스마다 시간대가 다르면 정상 재시도가 재사용으로 판정되어 연결이 해제될 수 있다.
 - 배포 직후 기존 연결에는 refresh token이 없어 만료 때 한 번 다시 승인한다. PostgreSQL은 백업 후 `1793570000000-add-mcp-oauth-refresh` migration(`mcp_oauth_refresh` 테이블)을 적용한다.
 
-VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP 설정과 원격 OAuth 설정을 혼용하지 않는다.
+VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. (로컬 stdio MCP 서버는 2026-11-06에 제거되어 원격 OAuth 연결만 있다.)
 
 ## 제공하는 권한과 도구
 
