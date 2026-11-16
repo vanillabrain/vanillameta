@@ -1,3 +1,4 @@
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { MetricDeletionService, metricDeletionRevision } from '../metric/metric-deletion.service';
 import { MetricDeleteReceipt } from '../metric/entities/metric-delete-receipt.entity';
 import { ExploreView } from './entities/explore-view.entity';
@@ -145,6 +146,7 @@ describe(`Studio mixed source replacement on real DuckDB and ${
         PersonalView,
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,

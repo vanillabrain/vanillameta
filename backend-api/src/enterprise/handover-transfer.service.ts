@@ -11,6 +11,7 @@ import { metadataTransaction, serializeMetadataWork } from '../common/metadata-w
 import { lockStaffWrite } from './staff-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { deleteDashboardComments } from '../dashboard/dashboard-comment-cleanup';
+import { deleteDashboardRevisions } from '../dashboard-studio/dashboard-revision-history';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { Database } from '../database/entities/database.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
@@ -414,6 +415,7 @@ export class HandoverTransferService {
               );
               if (changed.affected !== 1) throw new ConflictException('소유 매핑이 변경됐습니다.');
               await deleteDashboardComments(manager, item.dashboard.id);
+              await deleteDashboardRevisions(manager, item.dashboard.id);
               const next = { ...item.dashboard, assetVersion: item.dashboard.assetVersion + 1 };
               const bumped = await manager.update(
                 Dashboard,

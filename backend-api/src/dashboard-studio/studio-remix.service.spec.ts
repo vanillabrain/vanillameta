@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { studioDigest } from './studio-legacy';
 import { EnterpriseNotificationAudience } from '../enterprise/entities/enterprise-notification-audience.entity';
@@ -129,6 +130,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         EnterpriseGroupDelivery,
         EnterpriseDeliveryReceipt,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,

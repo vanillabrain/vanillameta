@@ -2,6 +2,15 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { get, post } from '@/helpers/apiHelper';
 import { aiConnectionsService, ConsentRequest, validateDecisionRedirect } from '@/api/aiConnectionsService';
 vi.mock('@/helpers/apiHelper', () => ({ get: vi.fn(), post: vi.fn() }));
+const KINDS = {
+  'sources:read': 'read',
+  'documents:read': 'read',
+  'reports:read': 'read',
+  'comments:read': 'read',
+  'comments:write': 'write',
+  'suggestions:write': 'write',
+  'shares:write': 'write',
+} as const;
 const request: ConsentRequest = {
   ticket: 'a'.repeat(64),
   clientName: 'Test AI',
@@ -9,6 +18,7 @@ const request: ConsentRequest = {
   organization: { id: 1, name: 'Current org' },
   accountLabel: 'user@example.test',
   requestedScopes: ['sources:read', 'documents:read'],
+  scopeKinds: KINDS,
   expiresAt: '2099-10-29T01:00:00.000Z',
   reviewToken: 'signed-review',
   redirectUri: 'https://ai.example/callback',
@@ -101,6 +111,15 @@ it('accepts report and comment scopes but no unknown or duplicate scope', async 
     vi.mocked(get).mockResolvedValue({ data: { ...request, requestedScopes } });
     await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
   }
+});
+it('refuses a request that leaves a requested scope without a kind or names an unknown kind', async () => {
+  vi.mocked(get).mockResolvedValue({ data: { ...request, scopeKinds: { 'sources:read': 'read' } } });
+  await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
+  vi.mocked(get).mockResolvedValue({ data: { ...request, scopeKinds: { ...KINDS, 'documents:read': 'publish' } } });
+  await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
+  const { scopeKinds: _missing, ...withoutKinds } = request;
+  vi.mocked(get).mockResolvedValue({ data: withoutKinds });
+  await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
 });
 it('revokes only the selected grant with no retry or actor body', async () => {
   vi.mocked(post).mockResolvedValue({ data: { revoked: true } });

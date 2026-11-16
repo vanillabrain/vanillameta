@@ -1,4 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -63,6 +64,7 @@ describe('UC055 protected physical deletion with SQLite/policy/JWT', () => {
     Dataset,
     Widget,
     Dashboard,
+    DashboardRevision,
     DashboardWidget,
     DashboardShare,
     DashboardPublication,
@@ -302,9 +304,25 @@ describe('UC055 protected physical deletion with SQLite/policy/JWT', () => {
   );
   it('deletes only the owned root/links/inactive unique share and keeps independent assets and history', async () => {
     const beforeCopy = JSON.stringify(await db.manager.findOneBy(Dashboard, { id: 2 }));
+    for (const dashboardId of [1, 2])
+      await db.manager.insert(DashboardRevision, {
+        revisionId: `00000000-0000-4000-8000-00000000000${dashboardId}`,
+        dashboardId,
+        revision: 'r'.repeat(64),
+        studioDocument: '{}',
+        title: 'saved',
+        layout: '[]',
+        actorId: 1,
+        operation: 'save',
+        authorKind: 'human',
+        createdAt: new Date().toISOString(),
+      });
     const body = await input();
     expect((await service.impact(1, 1)).data.canDelete).toBe(true);
     const result = await service.remove(1, 1, body);
+    // A deleted dashboard's history goes with it; the copy keeps its own.
+    expect(await db.manager.count(DashboardRevision, { where: { dashboardId: 1 } })).toBe(0);
+    expect(await db.manager.count(DashboardRevision, { where: { dashboardId: 2 } })).toBe(1);
     expect(result.data).toMatchObject({
       dashboardId: 1,
       requestId: body.requestId,

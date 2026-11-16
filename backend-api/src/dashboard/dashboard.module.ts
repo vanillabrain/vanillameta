@@ -65,6 +65,11 @@ import { PersonalViewService } from './personal-view.service';
     JwtService,
     PersonalViewService,
   ],
-  exports: [DashboardService, DashboardCacheService],
+  exports: [
+    DashboardService,
+    DashboardCacheService,
+    DashboardDeletionService,
+    DashboardCommentService,
+  ],
 })
 export class DashboardModule {}

@@ -25,6 +25,7 @@ import { DashboardWidget } from './dashboard-widget/entities/dashboard-widget.en
 import { DashboardDeleteReceipt } from './entities/dashboard-delete-receipt.entity';
 import { lockDashboardWrite } from './dashboard-write-lock';
 import { deleteDashboardComments } from './dashboard-comment-cleanup';
+import { deleteDashboardRevisions } from '../dashboard-studio/dashboard-revision-history';
 
 const positive = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) > 0;
@@ -234,7 +235,22 @@ export class DashboardDeletionService {
       },
     };
   }
-  async remove(value: unknown, actor: number, body: unknown, expectedEpoch = 0) {
+  /**
+   * `beforeAccess` is for a caller that acts for a delegated connection: it runs first in the
+   * deleting transaction, so a connection revoked or demoted while the call waited deletes nothing
+   * and reads no receipt.
+   */
+  async remove(
+    value: unknown,
+    actor: number,
+    body: unknown,
+    expectedEpoch = 0,
+    options: {
+      beforeAccess?: (manager: EntityManager) => Promise<void>;
+      /** Set when an external AI deletes: the organization's audit then says so, beside the usual event. */
+      byConnection?: boolean;
+    } = {},
+  ) {
     const id = this.id(value),
       input = this.input(body);
     const digest = hash([
@@ -244,6 +260,7 @@ export class DashboardDeletionService {
       input.expectedOrganizationId,
     ]);
     const run = async (m: EntityManager) => {
+      await options.beforeAccess?.(m);
       const org = await this.scope(actor, expectedEpoch, m, true);
       if (input.expectedActorId !== actor || input.expectedOrganizationId !== org)
         throw new ConflictException(
@@ -253,7 +270,10 @@ export class DashboardDeletionService {
       const prior = await m.findOneBy(DashboardDeleteReceipt, key);
       if (prior) {
         if (prior.organizationId !== org || prior.digest !== digest)
-          throw new ConflictException('같은 요청 번호의 삭제 기준이 다릅니다.');
+          throw new ConflictException({
+            code: 'REQUEST_REUSED',
+            message: '같은 요청 번호의 삭제 기준이 다릅니다.',
+          });
         return this.receipt(prior, true);
       }
       const row = await this.owned(
@@ -265,13 +285,20 @@ export class DashboardDeletionService {
       // Historical receipt replay above remains available without authorizing a new deletion.
       await this.inactiveManagement(row, actor, org, m);
       if (deletionRevision(row) !== input.expectedRevision)
-        throw new ConflictException('저장 내용이 변경되었습니다. 삭제 영향을 다시 확인해 주세요.');
+        throw new ConflictException({
+          code: 'REVISION_CHANGED',
+          message: '저장 내용이 변경되었습니다. 삭제 영향을 다시 확인해 주세요.',
+        });
       const dependencies = await dashboardDependencyCounts(row, m);
       if (dependencies.some(item => item.count > 0))
-        throw new ConflictException(
-          '사용처가 남아 있습니다. 공유·권한·게시 설정을 중지하고 삭제 영향을 다시 확인해 주세요.',
-        );
+        throw new ConflictException({
+          code: 'HAS_DEPENDENCIES',
+          message:
+            '사용처가 남아 있습니다. 공유·권한·게시 설정을 중지하고 삭제 영향을 다시 확인해 주세요.',
+          dependencies,
+        });
       await deleteDashboardComments(m, id);
+      await deleteDashboardRevisions(m, id);
       await m.delete(DashboardWidget, { dashboardId: id });
       const mapping = await m.delete(UserMapping, { dashboardId: id, userInfoId: actor });
       if (mapping.affected !== 1) throw new ConflictException('소유 연결이 변경되었습니다.');
@@ -292,6 +319,15 @@ export class DashboardDeletionService {
           subjectId: actor,
           action: 'dashboard-deletion.completed',
           resourceId: saved.id,
+          version: 1,
+        });
+      if (org !== null && options.byConnection)
+        await m.insert(EnterpriseAuditEvent, {
+          organizationId: org,
+          actorId: actor,
+          subjectId: actor,
+          action: 'dashboard.mcp-remove',
+          resourceId: id,
           version: 1,
         });
       if ((await this.scope(actor, expectedEpoch, m)) !== org)
@@ -317,9 +353,10 @@ export class DashboardDeletionService {
             '55P03',
           ].includes(error.driverError?.code))
       )
-        throw new ConflictException(
-          '삭제 요청이 경합 중입니다. 같은 요청으로 결과를 확인해 주세요.',
-        );
+        throw new ConflictException({
+          code: 'STATE_CHANGED',
+          message: '삭제 요청이 경합 중입니다. 같은 요청으로 결과를 확인해 주세요.',
+        });
       throw error;
     }
   }

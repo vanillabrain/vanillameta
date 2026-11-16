@@ -38,6 +38,10 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-}
       AI_API_BASE_URL: ${AI_API_BASE_URL:-}
+      # 원격 MCP(선택): 셋과 CONFIG_SECRET_KEY 가 모두 있어야 /v1/mcp 가 켜진다. 비어 있으면 503 으로 꺼져 있다. 설정 방법은 README_DOCKER.md.
+      MCP_PUBLIC_API_URL: ${MCP_PUBLIC_API_URL:-}
+      MCP_PUBLIC_WEB_URL: ${MCP_PUBLIC_WEB_URL:-}
+      MCP_OAUTH_CLIENTS_JSON: ${MCP_OAUTH_CLIENTS_JSON:-}
       # 쿼리 결과 캐시(선택): docker compose --profile cache up 과 함께 REDIS_URL=redis://redis:6379
       REDIS_URL: ${REDIS_URL:-}
     # 시드는 멱등이라 재시작해도 데이터를 유지한다.

@@ -1,3 +1,4 @@
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -51,6 +52,7 @@ const entities = [
   Database,
   Metric,
   Dashboard,
+  DashboardRevision,
   UserMapping,
   StudioState,
   DashboardWidget,
@@ -72,6 +74,21 @@ const entities = [
   EnterpriseHandoverTransfer,
   ...REPORT_COMMENT_ENTITIES,
 ];
+const revisionRow = (dashboardId: number, n = 1) => ({
+  revisionId: `00000000-0000-4000-8000-${String(dashboardId * 10 + n).padStart(12, '0')}`,
+  dashboardId,
+  revision: 'r'.repeat(64),
+  studioDocument: '{}',
+  title: 'saved',
+  layout: '[]',
+  actorId: 1,
+  operation: 'save' as const,
+  authorKind: 'external-ai' as const,
+  aiGrantId: 'grant-of-the-old-owner',
+  aiClientName: 'Old owner connection',
+  createdAt: new Date().toISOString(),
+});
+
 describe('UC051 final dashboard transfer actual HTTP and metadata', () => {
   jest.setTimeout(30000);
   let db: DataSource,
@@ -371,9 +388,16 @@ describe('UC051 final dashboard transfer actual HTTP and metadata', () => {
     ).body;
     expect(accepted).toMatchObject({ status: 'accepted', version: 2 });
     const resources = await snapshot();
+    // History written by the old owner's connection must not follow the dashboard to the new owner.
+    // Dashboard 90 is unrelated and keeps its history.
+    for (const dashboardId of [21, 22, 90])
+      await db.manager.insert(DashboardRevision, revisionRow(dashboardId));
     const completed = (
       await http('post', p.requestId + '/transfer/execute', 1, terms(accepted)).expect(201)
     ).body;
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: 21 })).toBe(0);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: 22 })).toBe(0);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: 90 })).toBe(1);
     expect(completed).toMatchObject({
       status: 'completed',
       version: 3,

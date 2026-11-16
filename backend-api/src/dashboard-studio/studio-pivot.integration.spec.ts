@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
@@ -94,6 +95,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
         PersonalView,
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,
@@ -282,6 +284,18 @@ describe('Studio real DuckDB and transactional metadata', () => {
     ).toBe(true);
     expect((await studio.get(copy.dashboardId, 7)).document).toEqual(copy.document);
     expect(await studio.copy(id, body, 7)).toEqual(copy);
+    // The copy is a creation: one history row, written with it. The retry above added none.
+    const copyHistory = await db.manager.findBy(DashboardRevision, {
+      dashboardId: copy.dashboardId,
+    });
+    expect(copyHistory).toHaveLength(1);
+    expect(copyHistory[0]).toMatchObject({
+      operation: 'create',
+      authorKind: 'human',
+      actorId: 7,
+      requestId: 'copy-' + id,
+      revision: copy.document.revision,
+    });
     await expect(studio.copy(id, { ...body, title: 'different' }, 7)).rejects.toThrow();
     const publication = new StudioPublicationService(db, studio, new SourceAccessService(db));
     const sanitized = (publication as any).sanitize(

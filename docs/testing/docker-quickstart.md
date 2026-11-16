@@ -137,6 +137,8 @@
 
 ## AI 키 없이 MCP·데이터 연결·분석 확인 (2026-11-05T04:15Z 시작)
 
+> **2026-11-06:** 아래 MCP 검증은 로컬 stdio 서버(`mcp-server/`)로 한 것이며, 그 서버와 `vm_propose_analysis`·`vm_save_analysis`는 제거되었다. 역사 기록이다. 현재의 MCP 연결(원격 `/v1/mcp`)은 `scripts/docker-e2e.sh`와 `docs/operations/remote-ai-oauth.md`를 본다.
+
 전제(사용자): MCP에서는 외부 AI가 두뇌이므로 서버의 AI 키는 선택 사항이다. 결과: 조회와 업로드까지만 성립한다. 분석을 만들고 저장하는 두 도구는 서버 AI 설정이 필요하고, 외부 AI가 직접 만든 분석을 저장하는 경로는 현재 코드에 없다(아래 정리).
 
 `AI_*` 변수를 하나도 넣지 않은 기본 스택(`docker-compose.yml` sha256 `7c3b1e1f…`)을 `docker compose up --build -d --wait`로 새로 띄웠다(VM을 새로 만들어 캐시 없음, `docker compose up` 단독 11분 26초, 세 컨테이너 healthy). 빌드 때 작업 트리에는 커밋하지 않은 `frontend-web/src/pages/Documents/SheetsImport.tsx` 변경이 있었고 이 파일은 웹 이미지 빌드 컨텍스트 안이다. 그래서 이미지는 정확히 커밋 `b861fa9f`가 아니라 그 작업 트리로 빌드됐다(이전 절의 빌드도 같은 조건이었을 수 있다). `GET /v1/ai/status`는 `configured:false`였다. 아래 값은 모두 도구 출력에서 읽은 것이며 로그 파일은 `phaseD-up.out`(기동)뿐이다. 스크립트와 CSV는 `phase2-evidence/docker-quickstart/mcp-nokey/`에 있고, 스크립트의 출력은 파일로 남기지 않았다.
@@ -212,7 +214,7 @@ architect가 지적했고 사용자가 정한 것.
 
 ## 확인하지 못한 것
 
-- 이 스택에서 `NOT_RUN`인 것. `scripts/login.js`의 대화형 로그인. 원격 `/v1/mcp`(OAuth이며 compose에 `MCP_PUBLIC_*`와 `MCP_OAUTH_CLIENTS_JSON` 설정이 없다). 서버 AI를 켠 `vm_propose_analysis` 이후 `vm_save_analysis`까지의 전체 여정. 업로드한 파일을 앱 화면(SQL 편집기, 인브라우저 DuckDB)에서 분석하는 것. PostgreSQL 이외 외부 DB 연결. 연결 테스트 버튼의 UI 동작(API 호출은 위 결함으로 실패).
+- 이 스택에서 `NOT_RUN`인 것(당시 기록, 로컬 stdio 서버는 이후 제거됨). `scripts/login.js`의 대화형 로그인. 원격 `/v1/mcp`(OAuth이며 compose에 `MCP_PUBLIC_*`와 `MCP_OAUTH_CLIENTS_JSON` 설정이 없다). 서버 AI를 켠 `vm_propose_analysis` 이후 `vm_save_analysis`까지의 전체 여정. 업로드한 파일을 앱 화면(SQL 편집기, 인브라우저 DuckDB)에서 분석하는 것. PostgreSQL 이외 외부 DB 연결. 연결 테스트 버튼의 UI 동작(API 호출은 위 결함으로 실패).
 - 사람 손으로 직접 누르는 홈의 샘플 버튼 클릭(위 절). 샘플 경로는 DOM `click()`으로만 실행했고, 키보드로 시험한 버튼은 샘플 버튼이 아니다. 포커스가 없는 창에서 돌아와 첫 클릭으로 누르는 경우가 재현 후보다.
 - amd64 이미지(이번 빌드는 arm64), BuildKit 빌드 경로, 메모리 4GB 미만 환경의 빌드(OOM 가능성은 코드 주석 기준 추측).
 - 첫 방문 직후 `localhost` 탭이 막히는 일의 재현 여부.
@@ -231,4 +233,4 @@ architect가 지적했고 사용자가 정한 것.
 - dev 모드는 `GET /v1/`이 데모 계정을 반환하고 회원가입이 열려 있으며 비밀번호 변경 경로가 없다. 그래서 인터넷 공개용이 아니며 `VM_BIND=0.0.0.0`은 신뢰하는 LAN 한정이다.
 - 루트의 `docker-test.sh`, `quick-demo.sh`, `DEMO.md`, `docs/T08_S01_completion_summary.md`는 옛 80포트·`/api/v1` 구성을 가정해 새 스택과 맞지 않는다(이전부터 깨져 있었고 이번 범위 밖, 후속 정리).
 - CI에는 compose 스모크 잡이 없다.
-- `npx` 한 줄 실행은 제공하지 않는다. `mcp-server`는 `private`이고 `bin`이 없다.
+- `npx` 한 줄 실행은 제공하지 않는다. (당시 기록: 로컬 `mcp-server`는 `private`이고 `bin`이 없었다. 그 서버는 2026-11-06에 제거되었다.)

@@ -1,5 +1,7 @@
 # UC056 MCP 제작 실행 증빙
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 2026-10-21 · 기준 develop `7c711bd7` + 이번 MCP 변경 · [계획](../plans/UC-056-mcp-authoring.md) · [UC056](../use_cases/UC-056-mcp-artifact-authoring.md) · [TC056](../test_cases/TC-056-mcp-artifact-authoring.md)
 
 ## 구현과 범위

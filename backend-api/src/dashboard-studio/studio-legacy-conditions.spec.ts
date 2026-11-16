@@ -1,3 +1,6 @@
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { ForbiddenException } from '@nestjs/common';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
@@ -111,6 +114,9 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
       entities: [
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
+        EnterpriseMembership,
+        User,
         DashboardShare,
         DashboardWidget,
         UserMapping,

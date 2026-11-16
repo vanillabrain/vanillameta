@@ -1,5 +1,7 @@
 # MCP 원격 제작(HTTP) 구현과 검증 (폐기)
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 > **2026-11-02 폐기.** `mcp-server`의 HTTP 모드(`src/http.js`, `src/index-http.js`, `test/http.test.js`, `start:http`)를 제거했다. 이 모드는 요청의 Bearer 사용자 토큰을 그대로 API에 전달하도록 설계되어, 클라이언트가 6시간·범위 없는 VanillaMeta 로그인 JWT를 외부 AI에 넘겨야 했다. 이는 [원격 OAuth 계획](../plans/remote-ai-oauth.md)의 "VM 로그인 JWT를 외부 AI에 반환하지 않는다"와 충돌한다. 원격 사용은 백엔드 `/v1/mcp`의 OAuth 승인만 쓴다([운영 설정](../operations/remote-ai-oauth.md)). `mcp-server`는 로컬 stdio 전용이다. 아래 2026-10-31 기록은 이력으로만 남기며 이 노트가 대체한다.
 
 2026-10-31. 기준 브랜치 `develop`. 이번 단위는 같은 6개 도구를 원격 HTTP로 제공하고, 저장 승인 경계가 원격에서도 유지되는지 확인하는 작업이다.

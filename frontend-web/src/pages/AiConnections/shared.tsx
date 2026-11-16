@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
-import type { AiScope } from '@/api/aiConnectionsService';
+import type { AiScope, ConsentRequest } from '@/api/aiConnectionsService';
 
-export const isWriteScope = (scope: AiScope) => scope.endsWith(':write');
+/** Anything the server does not call a read is grouped with the writes and starts unchecked. */
+export const isWriteScope = (request: Pick<ConsentRequest, 'scopeKinds'>, scope: AiScope) =>
+  request.scopeKinds[scope] !== 'read';
 export const SCOPE_LABELS: Record<AiScope, string> = {
   'sources:read': 'aiConnections.sourcesRead',
   'documents:read': 'aiConnections.documentsRead',
@@ -15,10 +17,18 @@ export const SCOPE_LABELS: Record<AiScope, string> = {
   'comments:write': 'aiConnections.commentsWrite',
   'suggestions:write': 'aiConnections.suggestionsWrite',
   'shares:write': 'aiConnections.sharesWrite',
+  'dashboards:read': 'aiConnections.dashboardsRead',
+  'dashboards:write': 'aiConnections.dashboardsWrite',
+  'dashboards:delete': 'aiConnections.dashboardsDelete',
 };
 export const SCOPE_WARNINGS: Partial<Record<AiScope, string>> = {
   'shares:write': 'aiConnections.sharesWriteWarning',
+  'dashboards:write': 'aiConnections.dashboardsWriteWarning',
+  'dashboards:delete': 'aiConnections.dashboardsDeleteWarning',
 };
+/** The label key of a scope this build knows, or null: a scope it does not know is shown as it is. */
+export const scopeLabelKey = (scope: string): string | null =>
+  Object.prototype.hasOwnProperty.call(SCOPE_LABELS, scope) ? SCOPE_LABELS[scope as AiScope] : null;
 
 export function useConnectionScope() {
   const [scope, setScope] = useState(personalLibrarySessionScope);

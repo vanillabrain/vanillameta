@@ -435,6 +435,13 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     const ticket = start.redirectUrl.split('/').pop();
     const review = await service.request(actor, ticket, start.browser);
     expect(review.requestedScopes).toEqual([...MCP_SCOPES]);
+    // The consent screen defaults and groups by this kind, so every requested scope carries one.
+    expect(Object.keys(review.scopeKinds).sort()).toEqual([...MCP_SCOPES].sort());
+    expect(review.scopeKinds).toMatchObject({
+      'sources:read': 'read',
+      'comments:write': 'write',
+      'shares:write': 'write',
+    });
     const result = await service.decision(actor, ticket, start.browser, {
       decision: 'approve',
       reviewToken: review.reviewToken,

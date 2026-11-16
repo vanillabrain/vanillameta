@@ -18,6 +18,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 import { HandoverProposalService } from './handover-proposal.service';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { deleteDashboardComments } from '../dashboard/dashboard-comment-cleanup';
+import { deleteDashboardRevisions } from '../dashboard-studio/dashboard-revision-history';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
@@ -458,6 +459,7 @@ export class BundleHandoverService {
               );
               if (changed.affected !== 1) throw new ConflictException('소유 매핑이 변경됐습니다.');
               await deleteDashboardComments(manager, item.dashboard.id);
+              await deleteDashboardRevisions(manager, item.dashboard.id);
               const next = { ...item.dashboard, assetVersion: item.dashboard.assetVersion + 1 };
               if (
                 (

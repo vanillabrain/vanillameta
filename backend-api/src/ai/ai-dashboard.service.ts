@@ -2684,7 +2684,10 @@ export class AiDashboardService {
             (await this.connection.duckDBVersion(prepared.draft.databaseId)) !==
             prepared.sourceRevision
           )
-            throw new ConflictException('Business source revision changed');
+            throw new ConflictException({
+              code: 'SOURCE_CHANGED',
+              message: 'Business source revision changed',
+            });
           return this.schema(prepared.draft.databaseId);
         })
       : undefined;
@@ -2817,7 +2820,10 @@ export class AiDashboardService {
           currentRevision !== prepared.sourceRevision ||
           (savedScope.conditions && currentRevision !== savedScope.conditions.sourceRevision)
         )
-          throw new ConflictException('Condition source revision changed');
+          throw new ConflictException({
+            code: 'SOURCE_CHANGED',
+            message: 'Condition source revision changed',
+          });
       }
       if (basisSchema) {
         const profile = this.basisProfile(draft.databaseId, basisSchema);

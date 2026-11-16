@@ -1,3 +1,5 @@
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { ForbiddenException } from '@nestjs/common';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
@@ -122,6 +124,8 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
         User,
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
+        EnterpriseMembership,
         DashboardShare,
         DashboardWidget,
         UserMapping,

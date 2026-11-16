@@ -1,5 +1,6 @@
 // Persistence paths are real; no model request is part of this fixture.
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -75,6 +76,7 @@ const entities = [
   SourceCatalogEntry,
   SourceConditionEntry,
   Dashboard,
+  DashboardRevision,
   UserMapping,
   StudioState,
   StudioRun,
@@ -103,6 +105,21 @@ const entities = [
   EnterpriseBundleHandover,
   ...REPORT_COMMENT_ENTITIES,
 ];
+const revisionRow = (dashboardId: number, n = 1) => ({
+  revisionId: `00000000-0000-4000-8000-${String(dashboardId * 10 + n).padStart(12, '0')}`,
+  dashboardId,
+  revision: 'r'.repeat(64),
+  studioDocument: '{}',
+  title: 'saved',
+  layout: '[]',
+  actorId: 1,
+  operation: 'save' as const,
+  authorKind: 'external-ai' as const,
+  aiGrantId: 'grant-of-the-old-owner',
+  aiClientName: 'Old owner connection',
+  createdAt: new Date().toISOString(),
+});
+
 describe('UC051 atomic source and connected Studio dashboard bundle', () => {
   jest.setTimeout(30000);
   let db: DataSource,
@@ -459,10 +476,16 @@ describe('UC051 atomic source and connected Studio dashboard bundle', () => {
     ).body;
     const before = await snapshot(),
       f = await fileState();
+    // History written by the old owner's connection must not follow the dashboard to the new owner.
+    // Dashboard 990 is unrelated and keeps its history.
+    for (const dashboardId of [101, 990])
+      await db.manager.insert(DashboardRevision, revisionRow(dashboardId));
     const done = (
       await http('post', p.requestId + '/bundle-transfer/execute', 1, terms(accepted)).expect(201)
     ).body;
     expect(done).toMatchObject({ status: 'completed', version: 3 });
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: 101 })).toBe(0);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: 990 })).toBe(1);
     expect(await db.manager.findOneBy(Database, { id: sourceId })).toMatchObject({
       ownerId: 2,
       catalogVersion: 1,

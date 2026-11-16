@@ -1,5 +1,7 @@
 # UC056: 외부 에이전트에서 Artifact 제작
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 2026-10-21 · develop `7c711bd7` · 사용자가 MCP 서버 추가를 요청해 기존 제안/저장 경계에 로컬 stdio 어댑터를 연결한다. 구현을 위한 새 의존성은 이 사용자 요청의 MCP SDK에 한정하며 기존 AI 모델/실행기를 바꾸지 않는다.
 
 ## 설계 선택
