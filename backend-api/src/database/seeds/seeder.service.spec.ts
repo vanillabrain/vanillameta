@@ -3,6 +3,7 @@ import * as path from 'path';
 import { SeederService } from './seeder.service';
 import { Database } from '../entities/database.entity';
 import { DatabaseType } from '../entities/database_type.entity';
+import { Widget } from '../../widget/entities/widget.entity';
 import { decryptConnectionConfig } from '../../utils/crypto.util';
 
 describe('SeederService', () => {
@@ -14,9 +15,15 @@ describe('SeederService', () => {
 
   const makeDataSource = (userCount: number, database = sqlitePath) => {
     const chains: any[] = [];
+    // The seed reads inserted templates back to map its fixed ids to the generated ones, so the
+    // mock repository returns what the query builder was asked to insert, as a real table would.
+    const inserted = new Map<any, any[]>();
     const dataSource: any = {
       options: { database },
-      getRepository: jest.fn(() => ({ count: jest.fn(async () => userCount) })),
+      getRepository: jest.fn((entity: any) => ({
+        count: jest.fn(async () => userCount),
+        find: jest.fn(async () => inserted.get(entity) ?? []),
+      })),
       createQueryBuilder: jest.fn(() => {
         const rec: any = {
           methods: [] as string[],
@@ -44,6 +51,10 @@ describe('SeederService', () => {
           }),
           execute: jest.fn(async () => {
             rec.methods.push('execute');
+            inserted.set(rec.intoArg, [
+              ...(inserted.get(rec.intoArg) ?? []),
+              ...[].concat(rec.valuesArg ?? []),
+            ]);
             return { identifiers: [] };
           }),
         };
@@ -75,10 +86,13 @@ describe('SeederService', () => {
   });
 
   it('runs the seed on local env when the user table is empty', async () => {
-    const { service, chains } = makeService('local', 0);
+    const { service, chains, logger } = makeService('local', 0);
     await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
     expect(chains.length).toBeGreaterThan(0);
     expect(chains.every(c => c.methods.includes('execute'))).toBe(true);
+    // The bootstrap logs a failed seed instead of throwing, so assert that it ran to its last step.
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(chains.some(c => c.intoArg === Widget)).toBe(true);
   });
 
   it('skips inserts on local env when data already exists', async () => {

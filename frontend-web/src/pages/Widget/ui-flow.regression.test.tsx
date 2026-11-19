@@ -188,6 +188,7 @@ const widget = (id = 1) => ({
   option: { axis: 'a' },
   componentType: 'BAR',
 });
+const EMPTY_NOTICE = '아직 추가한 위젯이 없습니다. 편집 화면에서 위젯을 추가해 주세요.';
 const selectedData = { id: 2, databaseId: 1, datasetType: 'DATASET' };
 const chart = { id: 5, title: 'Chart', componentType: 'BAR', option: { axis: 'a' } };
 let client: QueryClient;
@@ -237,7 +238,7 @@ beforeEach(() => {
   mocks.createWidget.mockResolvedValue(response(widget()));
   mocks.updateWidget.mockResolvedValue(response(widget()));
   mocks.selectDashboard.mockResolvedValue(
-    response({ title: 'Dashboard', widgets: [widget()], layout: [{ i: 1, w: 3 }], shareYn: 'N' }),
+    response({ id: 1, title: 'Dashboard', widgets: [widget()], layout: [{ i: 1, w: 3 }], shareYn: 'N' }),
   );
   mocks.selectDatabaseList.mockResolvedValue(
     response([
@@ -492,15 +493,21 @@ describe('dashboard and database errors', () => {
     await waitFor(() => expect(mocks.error).toHaveBeenCalledWith('dashboard.loadFailed'));
     expect(screen.queryByTestId('widget-wrapper')).toBeNull();
     expect(mocks.hide).toHaveBeenCalled();
-    expect(screen.getByTestId('dashboard-grid').children.length).toBe(0);
+    // A failed load is never shown as a verified empty dashboard: no grid and no "no widgets yet" notice.
+    expect(screen.queryByTestId('dashboard-grid')).toBeNull();
+    expect(screen.queryByText(EMPTY_NOTICE)).toBeNull();
   });
 
   it('dashboard malformed arrays cannot blank the page', async () => {
-    mocks.selectDashboard.mockResolvedValueOnce(response({ title: 'Malformed', layout: null, widgets: null }));
+    mocks.selectDashboard.mockResolvedValueOnce(response({ id: 1, title: 'Malformed', layout: null, widgets: null }));
     mount(<DashboardView />);
-    await waitFor(() => expect(mocks.hide).toHaveBeenCalled());
-    expect(screen.getByTestId('dashboard-grid')).toBeTruthy();
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith('dashboard.loadFailed'));
+    expect(mocks.hide).toHaveBeenCalled();
+    // The page stays up with its header, but a response with non-array layout or widgets is a failed load.
+    expect(screen.getByText('dashboard.view')).toBeTruthy();
+    expect(screen.queryByTestId('dashboard-grid')).toBeNull();
     expect(screen.queryByTestId('widget-wrapper')).toBeNull();
+    expect(screen.queryByText(EMPTY_NOTICE)).toBeNull();
   });
 
   it('corrupt database HTTP 400 shows an error while a healthy selection recovers', async () => {

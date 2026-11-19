@@ -32,7 +32,8 @@ export class ConnectionPoolMonitorService {
   async collectTypeOrmMetrics(): Promise<PoolMetrics | null> {
     try {
       const driver = this.dataSource.driver as any;
-      const pool = driver.pool;
+      // TypeORM's PostgresDriver keeps its pg Pool on `master`; only the MySQL driver has `pool`.
+      const pool = this.dataSource.options.type === 'postgres' ? driver.master : driver.pool;
 
       if (!pool) {
         return null;

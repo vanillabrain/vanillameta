@@ -11,6 +11,11 @@ describe('ConnectionPoolMonitorService', () => {
 
   const originalEnv = process.env.NODE_ENV;
 
+  // The metadata store is PostgreSQL. TypeORM's PostgresDriver keeps its pg Pool (totalCount, idleCount and
+  // waitingCount) on `master`, not `pool`. Active connections are the total minus the idle ones.
+  const pgPool = (totalCount: number, idleCount: number, waitingCount = 0) =>
+    ({ master: { totalCount, idleCount, waitingCount } } as any);
+
   afterEach(() => {
     if (originalEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalEnv;
@@ -18,14 +23,8 @@ describe('ConnectionPoolMonitorService', () => {
 
   beforeEach(async () => {
     mockDataSource = {
-      driver: {
-        pool: {
-          _allConnections: [1, 2, 3, 4, 5],
-          _activeConnections: [1, 2],
-          _freeConnections: [3, 4, 5],
-          _connectionQueue: [],
-        },
-      } as any,
+      options: { type: 'postgres' } as any,
+      driver: pgPool(5, 3),
     };
 
     mockLogger = {
@@ -69,6 +68,39 @@ describe('ConnectionPoolMonitorService', () => {
       expect(metrics.idleConnections).toBe(3);
       expect(metrics.waitingRequests).toBe(0);
       expect(metrics.connectionUtilization).toBe(40); // 2/5 * 100
+    });
+
+    it('should count waiting requests from the pg pool', async () => {
+      mockDataSource.driver = pgPool(5, 0, 2);
+      const metrics = await service.collectTypeOrmMetrics();
+
+      expect(metrics.activeConnections).toBe(5);
+      expect(metrics.waitingRequests).toBe(2);
+      expect(metrics.connectionUtilization).toBe(100);
+    });
+
+    it('should read the legacy pool shape for a non-PostgreSQL driver', async () => {
+      (mockDataSource as any).options = { type: 'mysql' };
+      mockDataSource.driver = {
+        pool: {
+          _allConnections: [1, 2, 3, 4, 5],
+          _activeConnections: [1, 2],
+          _freeConnections: [3, 4, 5],
+          _connectionQueue: [],
+        },
+      } as any;
+      const metrics = await service.collectTypeOrmMetrics();
+
+      expect(metrics.totalConnections).toBe(5);
+      expect(metrics.activeConnections).toBe(2);
+      expect(metrics.idleConnections).toBe(3);
+      expect(metrics.connectionUtilization).toBe(40);
+    });
+
+    it('should not read a PostgreSQL pool from the MySQL-only `pool` property', async () => {
+      mockDataSource.driver = { pool: { totalCount: 5, idleCount: 3, waitingCount: 0 } } as any;
+
+      expect(await service.collectTypeOrmMetrics()).toBeNull();
     });
 
     it('should return null if pool is not available', async () => {
@@ -138,14 +170,7 @@ describe('ConnectionPoolMonitorService', () => {
 
     it('should detect high utilization', async () => {
       // Mock 높은 사용률
-      mockDataSource.driver = {
-        pool: {
-          _allConnections: [1, 2, 3, 4, 5],
-          _activeConnections: [1, 2, 3, 4, 5], // 100% 사용
-          _freeConnections: [],
-          _connectionQueue: [],
-        },
-      } as any;
+      mockDataSource.driver = pgPool(5, 0); // 100% 사용
 
       const health = await service.checkPoolHealth();
 
@@ -156,14 +181,7 @@ describe('ConnectionPoolMonitorService', () => {
 
     it('should detect waiting requests', async () => {
       // Mock 대기 중인 요청
-      mockDataSource.driver = {
-        pool: {
-          _allConnections: [1, 2, 3, 4, 5],
-          _activeConnections: [1, 2, 3, 4, 5],
-          _freeConnections: [],
-          _connectionQueue: [1, 2], // 2개의 대기 요청
-        },
-      } as any;
+      mockDataSource.driver = pgPool(5, 0, 2); // 2개의 대기 요청
 
       const health = await service.checkPoolHealth();
 
@@ -198,15 +216,8 @@ describe('ConnectionPoolMonitorService', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'prod';
 
-      // Mock 높은 사용률 (85%)
-      mockDataSource.driver = {
-        pool: {
-          _allConnections: [1, 2, 3, 4, 5],
-          _activeConnections: [1, 2, 3, 4, 5],
-          _freeConnections: [],
-          _connectionQueue: [],
-        },
-      } as any;
+      // Mock 높은 사용률 (100%)
+      mockDataSource.driver = pgPool(5, 0);
 
       await service.collectAndLogMetrics();
 
