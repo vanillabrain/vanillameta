@@ -13,6 +13,11 @@ API=${VM_API_URL:-http://localhost:4000/v1}
 KEEP=${KEEP:-0}
 EVIDENCE=${VM_EVIDENCE_DIR:-$(pwd)/.verify/mcp-artifacts}
 
+# colima 프로필을 주면 그 데몬을 쓴다. DOCKER_CONTEXT 가 남아 있으면 compose 와 직접 호출이 갈라진다.
+if [ -n "${VM_COLIMA_PROFILE:-}" ]; then
+  export DOCKER_HOST="unix://$HOME/.colima/$VM_COLIMA_PROFILE/docker.sock"
+fi
+unset DOCKER_CONTEXT
 command -v curl >/dev/null || { echo "curl 이 필요합니다" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 가 필요합니다" >&2; exit 2; }
 if docker compose version >/dev/null 2>&1; then COMPOSE=(docker compose); else
