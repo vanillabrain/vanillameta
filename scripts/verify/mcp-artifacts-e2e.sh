@@ -2,28 +2,31 @@
 # 한 줄로 MCP 아티팩트 시스템을 재판정한다.
 #   scripts/verify/mcp-artifacts-e2e.sh          # 빌드 → 기동 → MCP 쓰기 → 화면 URL 확인 → 재기동 유지 → 정리
 #   KEEP=1 scripts/verify/mcp-artifacts-e2e.sh   # 스택을 남겨 둔다(직접 열어 볼 때)
-# 이 스크립트가 만든 compose 프로젝트(vm-artifacts-verify)만 정리한다.
+# 이 스크립트가 만든 compose 프로젝트만 정리한다. 프로젝트 이름은 실행마다 다르고 vm- 으로 시작해야 한다.
 # 전제: docker compose, curl, python3, 포트 3000·4000 비어 있음.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
-PROJECT=${VM_PROJECT:-vm-artifacts-verify}
+PROJECT=${VM_PROJECT:-vm-artifacts-verify-$$}
 WEB=${VM_WEB_URL:-http://localhost:3000}
 API=${VM_API_URL:-http://localhost:4000/v1}
 KEEP=${KEEP:-0}
 EVIDENCE=${VM_EVIDENCE_DIR:-$(pwd)/.verify/mcp-artifacts}
 
-# colima 프로필을 주면 그 데몬을 쓴다. DOCKER_CONTEXT 가 남아 있으면 compose 와 직접 호출이 갈라진다.
+# colima 프로필을 명시했을 때만 데몬 선택을 바꾼다. 그 밖에는 사용자의 docker 환경을 그대로 쓴다.
 if [ -n "${VM_COLIMA_PROFILE:-}" ]; then
   export DOCKER_HOST="unix://$HOME/.colima/$VM_COLIMA_PROFILE/docker.sock"
+  unset DOCKER_CONTEXT
+  # 자격 증명 도우미가 없으면 비어 있는 설정을 쓴다(이미지 pull 은 익명). ~/.docker/config.json 은 읽거나 고치지 않는다.
+  if [ -z "${DOCKER_CONFIG:-}" ] && ! command -v docker-credential-desktop >/dev/null 2>&1; then
+    export DOCKER_CONFIG="${XDG_CACHE_HOME:-$HOME/.cache}/vanillameta-verify/docker-config"
+    mkdir -p "$DOCKER_CONFIG"
+  fi
 fi
-unset DOCKER_CONTEXT
-# 자격 증명 도우미가 없으면 비어 있는 설정 디렉터리를 쓴다(이미지 pull 은 익명으로 간다).
-# 사용자의 ~/.docker/config.json 은 읽거나 고치지 않는다.
-if [ -z "${DOCKER_CONFIG:-}" ] && ! command -v docker-credential-desktop >/dev/null 2>&1; then
-  export DOCKER_CONFIG="${XDG_CACHE_HOME:-$HOME/.cache}/vanillameta-verify/docker-config"
-  mkdir -p "$DOCKER_CONFIG"
-fi
+case "$PROJECT" in
+  vm-*) ;;
+  *) echo "프로젝트 이름은 vm- 으로 시작해야 합니다(받은 값: $PROJECT). 다른 스택의 볼륨을 지우지 않으려는 방어입니다." >&2; exit 2 ;;
+esac
 command -v curl >/dev/null || { echo "curl 이 필요합니다" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 가 필요합니다" >&2; exit 2; }
 if docker compose version >/dev/null 2>&1; then COMPOSE=(docker compose); else
@@ -34,7 +37,6 @@ compose() { "${COMPOSE[@]}" -p "$PROJECT" "$@"; }
 
 mkdir -p "$EVIDENCE"
 JAR=$(mktemp)
-trap 'rm -f "$JAR"' EXIT
 PASS=0
 FAIL=0
 pass() { PASS=$((PASS + 1)); echo "PASS: $*"; }
@@ -42,6 +44,7 @@ fail() { FAIL=$((FAIL + 1)); echo "FAIL: $*"; }
 json() { python3 -c "import sys,json;d=json.load(sys.stdin);print($1)"; }
 
 cleanup() {
+  rm -f "$JAR"
   if [ "$KEEP" = 1 ]; then echo "KEEP=1: 스택을 남겼습니다 ($WEB)"; return; fi
   compose down -v >/dev/null 2>&1 || true
 }
@@ -181,11 +184,16 @@ done
 curl -sS -o /dev/null -w '%{http_code}' "$WEB/ai-artifacts/$HTML_ID" | grep -qx 200 \
   && pass "화면 URL $WEB/ai-artifacts/<id> 200" || fail "화면 URL"
 
-echo "== 6. 재기동 후 유지 =="
-compose up -d --force-recreate backend >/dev/null 2>&1
-wait_http "$API/health" 200 || { fail "재기동 health"; }
-AGAIN=$(curl -sS -H "Authorization: Bearer $JWT" "$API/ai-artifacts/$DOC_ID")
-echo "$AGAIN" | grep -q 'Revenue grew 15%' && pass "재기동 뒤 document 유지" || fail "재기동 뒤 유지"
+echo "== 6. 전체 스택 재기동 후 유지 =="
+compose up -d --force-recreate >/dev/null 2>&1
+wait_http "$API/health" 200 || fail "재기동 health"
+for pair in "web:$HTML_ID:Hello Web" "document:$DOC_ID:Revenue grew 15%" "sheet:$SHEET_ID:Seoul" "chart:$CHART_ID:Jan"; do
+  name=${pair%%:*}; rest=${pair#*:}; id=${rest%%:*}; needle=${rest#*:}
+  body=$(curl -sS -H "Authorization: Bearer $JWT" "$API/ai-artifacts/$id")
+  echo "$body" | grep -q "$needle" && pass "재기동 뒤 $name 유지" || fail "재기동 뒤 $name"
+  curl -sS -o /dev/null -w '%{http_code}' "$WEB/ai-artifacts/$id" | grep -qx 200 \
+    && pass "재기동 뒤 $name URL 200" || fail "재기동 뒤 $name URL"
+done
 
 echo
 echo "결과: PASS=$PASS FAIL=$FAIL  증거=$EVIDENCE"

@@ -34,9 +34,6 @@ nano .env
 # 프로덕션 모드로 시작
 ./docker-compose-helper.sh start -d
 
-# 개발 모드로 시작 (핫 리로드 지원)
-./docker-compose-helper.sh dev
-
 # 상태 확인
 ./docker-compose-helper.sh status
 
@@ -46,9 +43,9 @@ nano .env
 
 ### 4. 애플리케이션 접속
 
-- 프론트엔드: http://localhost
-- 백엔드 API: http://localhost/api/v1
-- API 문서: http://localhost/api/v1/docs
+- 프론트엔드: http://localhost:3000
+- 백엔드 API: http://localhost:4000/v1
+- API 문서: http://localhost:4000/v1/docs
 
 ## 아키텍처
 
@@ -86,7 +83,7 @@ nano .env
 - JWT 인증
 - SQLite 데이터베이스 (로컬 개발)
 - Oracle Instant Client 포함
-- 헬스체크 엔드포인트: `/api/v1/health`
+- 헬스체크 엔드포인트: `/v1/health` (백엔드), `/healthz` (프론트엔드 nginx)
 
 #### Frontend (React)
 
@@ -111,12 +108,7 @@ nano .env
 
 개발용 `docker-compose.override.yml`(핫 리로드)은 제거되었습니다. 기본 스택이 한 줄 기동 경로입니다.
 
-### 개발 모드 특징
-
-- 소스 코드 볼륨 마운트 (핫 리로드)
-- 디버그 로깅 활성화
-- 프론트엔드 개발 서버 포트 3001
-- Redis 디버그 모드
+개발용 핫 리로드 오버라이드는 제거했습니다. 소스를 바꾸면 이미지를 다시 빌드한다.
 
 ### 특정 서비스만 실행
 
@@ -163,7 +155,7 @@ REDIS_PORT=6379
 ### 프론트엔드 환경 변수
 
 ```env
-REACT_APP_API_URL=http://localhost/api/v1
+REACT_APP_API_URL=http://localhost:4000/v1
 REACT_APP_MODE=local
 GENERATE_SOURCEMAP=false
 ```
@@ -220,10 +212,10 @@ docker-compose exec backend sqlite3 /app/sqlite_data/sqlite.db
 
 ```bash
 # 백엔드 헬스체크
-curl http://localhost/api/v1/health
+curl http://localhost:4000/v1/health
 
-# Nginx 헬스체크
-curl http://localhost/health
+# 프론트엔드 헬스체크
+curl http://localhost:3000/healthz
 
 # Redis 헬스체크
 docker-compose exec redis redis-cli ping

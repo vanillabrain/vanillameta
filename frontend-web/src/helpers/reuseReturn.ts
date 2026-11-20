@@ -8,6 +8,8 @@ export function reuseReturn(search: string) {
 export function isLoginReturnPath(path: string): boolean {
   if (/[\r\n]/.test(path)) return false;
   return (
-    /^\/reuse\/(share|publication)\/[a-f0-9-]{36}$/i.test(path) || /^\/ai-connections\/approve\/[a-f0-9]{64}$/.test(path)
+    /^\/reuse\/(share|publication)\/[a-f0-9-]{36}$/i.test(path) ||
+    /^\/ai-connections\/approve\/[a-f0-9]{64}$/.test(path) ||
+    /^\/ai-artifacts\/[a-f0-9-]{36}$/i.test(path)
   );
 }

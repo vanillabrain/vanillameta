@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import ReactECharts from 'echarts-for-react';
 import { z } from 'zod';
 import { aiArtifactService, AiArtifactDetail } from '@/api/aiArtifactService';
+import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
 
 const htmlSchema = z.object({ html: z.string() });
@@ -25,6 +26,10 @@ function HtmlBody({ content }: { content: Record<string, unknown> }) {
     <iframe
       title="artifact"
       sandbox=""
+      referrerPolicy="no-referrer"
+      {...({
+        csp: "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+      } as unknown as React.IframeHTMLAttributes<HTMLIFrameElement>)}
       srcDoc={html}
       className="min-h-[480px] w-full rounded-xl border border-border bg-white"
     />
@@ -150,10 +155,15 @@ function Body({ artifact }: { artifact: AiArtifactDetail }) {
 export default function AiArtifactView() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const scope = personalLibrarySessionScope();
   const query = useQuery({
-    queryKey: ['ai-artifact', id],
-    queryFn: ({ signal }) => aiArtifactService.detail(id as string, signal),
-    enabled: !!id,
+    queryKey: ['ai-artifact', scope, id],
+    queryFn: async ({ signal }) => {
+      const detail = await aiArtifactService.detail(id as string, signal);
+      if (scope !== personalLibrarySessionScope()) throw new Error('Session changed');
+      return detail;
+    },
+    enabled: !!scope && !!id,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -168,7 +178,7 @@ export default function AiArtifactView() {
           {t('aiArtifact.error')}
         </p>
       )}
-      {query.data && (
+      {!query.isFetching && !query.isError && query.data && (
         <>
           <h1 className="break-words text-2xl font-semibold">{query.data.title}</h1>
           <p className="text-sm text-muted-foreground">

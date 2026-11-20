@@ -10,7 +10,7 @@ WORKDIR /app
 # ENV NODE_ENV production
 # COPY --from=builder /app ./
 COPY . .
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 RUN npm run build
 
 # expose our default runtime port

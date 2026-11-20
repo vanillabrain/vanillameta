@@ -34,3 +34,17 @@ it('rejects a consent path with a final newline', () => {
     '/dashboard',
   );
 });
+
+it('preserves an artifact link after login', () => {
+  const path = '/ai-artifacts/11111111-1111-4111-8111-111111111111';
+  expect(reuseReturn('?returnTo=' + encodeURIComponent(path))).toBe(path);
+});
+it.each([
+  '/ai-artifacts',
+  '/ai-artifacts/1111',
+  '/ai-artifacts/11111111-1111-4111-8111-111111111111/edit',
+  '/ai-artifacts/11111111-1111-4111-8111-11111111111g',
+  '//evil.test/ai-artifacts/11111111-1111-4111-8111-111111111111',
+])('rejects nonexact artifact return %s', path => {
+  expect(reuseReturn('?returnTo=' + encodeURIComponent(path))).toBe('/dashboard');
+});
