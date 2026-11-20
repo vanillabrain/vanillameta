@@ -79,7 +79,7 @@
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/schedule": "^4.0.0",
     "@nestjs/swagger": "^7.0.0",
-    "@nestjs/throttler": "^4.2.1",
+    "@nestjs/throttler": "^6.7.1",
     "@nestjs/typeorm": "^12.0.2",
     "@nestjs/websockets": "^10.0.0",
     "@nestjsplus/knex": "^1.0.0",
