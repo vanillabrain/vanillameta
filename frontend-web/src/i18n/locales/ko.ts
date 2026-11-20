@@ -1,4 +1,10 @@
 export default {
+  aiArtifact: {
+    back: '아티팩트 목록',
+    loading: '아티팩트를 불러오는 중…',
+    error: '아티팩트를 열 수 없습니다. 삭제되었거나 접근 권한이 없습니다.',
+    revision: '리비전',
+  },
   aiConnections: {
     title: '외부 AI 연결',
     privacy:
@@ -12,9 +18,11 @@ export default {
     grantExpires: '승인 만료',
     tokenLifetime: '접근 토큰은 최대 10분 동안 유효합니다. 만료 후에는 AI 클라이언트에서 다시 연결해 주세요.',
     created: '연결 일시',
-    scopes: '읽기 허용 범위',
+    scopes: '허용 범위',
     sourcesRead: '소스 스키마와 설명 읽기',
     documentsRead: '보관 문서 내용 읽기',
+    artifactsRead: '내 아티팩트 읽기',
+    artifactsWrite: '내 아티팩트 만들기·수정·삭제',
     approve: '연결 승인',
     cancel: '요청 취소',
     loading: '연결을 불러오는 중…',

@@ -58,11 +58,8 @@ start_services() {
     echo -e "${BLUE}서비스를 시작합니다...${NC}"
     
     if [ "$mode" = "dev" ]; then
-        if [ "$detached" = "true" ]; then
-            docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
-        else
-            docker-compose -f docker-compose.yml -f docker-compose.override.yml up
-        fi
+        echo "개발용 docker-compose.override.yml 은 제거되었습니다. 기본 스택(start)을 사용하세요." >&2
+        exit 2
     else
         if [ "$detached" = "true" ]; then
             docker-compose up -d

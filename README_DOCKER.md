@@ -106,12 +106,10 @@ nano .env
 ### 개발 모드 실행
 
 ```bash
-# docker-compose.override.yml이 자동으로 적용됨
-./docker-compose-helper.sh dev
-
-# 또는 직접 실행
-docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+./docker-compose-helper.sh start
 ```
+
+개발용 `docker-compose.override.yml`(핫 리로드)은 제거되었습니다. 기본 스택이 한 줄 기동 경로입니다.
 
 ### 개발 모드 특징
 
@@ -333,3 +331,18 @@ docker stats
 - [Docker Compose 문서](https://docs.docker.com/compose/)
 - [VanillaMeta 개발 가이드](./docs/개발_가이드.md)
 - [기술 아키텍처](./docs/기술_아키텍처.md)
+
+## 원격 MCP와 AI 아티팩트
+
+`docker compose up --build` 는 원격 MCP 를 기본으로 켠다. AI 호스트(Claude Code 등)는
+`http://localhost:4000/v1/mcp` 에 OAuth 로 연결하고, 승인 화면에서 범위를 고른다.
+
+- 기본 클라이언트 `claude-code`, 콜백 `http://localhost:53683/callback`
+- 범위: `sources:read`, `documents:read`, `artifacts:read`, `artifacts:write`
+- 아티팩트 도구: `vm_create_artifact`, `vm_update_artifact`, `vm_delete_artifact`, `vm_get_artifact`, `vm_list_artifacts`
+- 종류와 내용: html `{html}`, document `{markdown}`, sheet `{columns, rows}`, chart `{chartType, labels, series}`
+- 만든 아티팩트는 `http://localhost:3000/ai-artifacts/<id>` 에서 열린다. 소유자만 읽고 쓸 수 있다.
+- 쓰기는 `expectedRevision` 으로 충돌을 막는다.
+
+재판정은 `scripts/verify/mcp-artifacts-e2e.sh` 하나로 한다(빌드, MCP 쓰기, 읽기, 재기동 유지까지).
+끄려면 `MCP_OAUTH_CLIENTS_JSON=`(빈 값)으로 띄운다.

@@ -1,3 +1,4 @@
+import { AiArtifactsModule } from './ai-artifacts/ai-artifacts.module';
 import { ArtifactsModule } from './artifacts/artifacts.module';
 import { AddFileArtifacts1793440000000 } from './migrations/1793440000000-add-file-artifacts';
 import { AddReportDeliveries1793270000000 } from './migrations/1793270000000-add-report-deliveries';
@@ -119,6 +120,7 @@ import { PostgresBaseline1793500000000 } from './migrations/postgres/17935000000
 
 @Module({
   imports: [
+    AiArtifactsModule,
     ArtifactsModule,
     DocumentsModule,
     McpRemoteModule,

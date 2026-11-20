@@ -18,6 +18,11 @@ services:
       URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev-only-url-secret}
       CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:-dev-only-config-secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # 원격 MCP: 기본으로 켜져 있다. AI 호스트가 http://localhost:4000/v1/mcp 에 OAuth 로 연결한다.
+      # 끄려면 MCP_OAUTH_CLIENTS_JSON= (빈 값). 설정 방법은 README_DOCKER.md.
+      MCP_PUBLIC_API_URL: ${MCP_PUBLIC_API_URL:-http://localhost:4000/v1}
+      MCP_PUBLIC_WEB_URL: ${MCP_PUBLIC_WEB_URL:-http://localhost:3000/}
+      MCP_OAUTH_CLIENTS_JSON: '${MCP_OAUTH_CLIENTS_JSON-[{"id":"claude-code","name":"Claude Code","redirectUris":["http://localhost:53683/callback","http://127.0.0.1:53683/callback"],"scopes":["sources:read","documents:read","artifacts:read","artifacts:write"]}]}'
       # REDIS_URL: redis://redis:6379   # --profile cache 사용 시
     # 부팅 시 시드(멱등) 후 앱 기동
     command: sh -c "mkdir -p /data/uploads && node dist/src/database/run-seed.js && node dist/src/main.js"

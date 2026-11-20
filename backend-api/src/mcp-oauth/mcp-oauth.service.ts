@@ -41,7 +41,7 @@ const decisionSchema = z
   .object({
     decision: z.enum(['approve', 'cancel']),
     reviewToken: z.string().regex(/^[a-f0-9]{64}$/),
-    scopes: z.array(mcpScopeSchema).max(2),
+    scopes: z.array(mcpScopeSchema).max(8),
   })
   .strict();
 const exchangeSchema = z
@@ -95,7 +95,7 @@ export class McpOAuthService {
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
       revocation_endpoint_auth_methods_supported: ['none'],
-      scopes_supported: ['sources:read', 'documents:read'],
+      scopes_supported: ['sources:read', 'documents:read', 'artifacts:read', 'artifacts:write'],
       code_challenge_methods_supported: ['S256'],
     };
   }

@@ -5,6 +5,13 @@ import { ArrowLeft, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 
+export const SCOPE_LABEL_KEYS: Record<string, string> = {
+  'sources:read': 'sourcesRead',
+  'documents:read': 'documentsRead',
+  'artifacts:read': 'artifactsRead',
+  'artifacts:write': 'artifactsWrite',
+};
+
 export function useConnectionScope() {
   const [scope, setScope] = useState(personalLibrarySessionScope);
   useEffect(() => {

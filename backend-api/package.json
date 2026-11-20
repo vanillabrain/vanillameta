@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "tsc --noEmit && node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js build",
+    "build": "tsc -p tsconfig.build.json --noEmit && node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --watch",
     "start:dev": "cross-env NODE_ENV=dev node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --watch",
@@ -63,7 +63,7 @@
     "@duckdb/node-api": "1.5.6-r.1",
     "@google-cloud/bigquery": "^6.0.3",
     "@modelcontextprotocol/node": "2.1.2",
-    "@modelcontextprotocol/server": "2.3.1",
+    "@modelcontextprotocol/server": "2.4.0",
     "@nestjs-modules/ioredis": "^2.3.1",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/bull": "^10.0.0",

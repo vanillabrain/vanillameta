@@ -1,14 +1,19 @@
 import { createHash } from 'crypto';
 import { z } from 'zod';
 
-export const mcpScopeSchema = z.enum(['sources:read', 'documents:read']);
+export const mcpScopeSchema = z.enum([
+  'sources:read',
+  'documents:read',
+  'artifacts:read',
+  'artifacts:write',
+]);
 export type McpScope = z.infer<typeof mcpScopeSchema>;
 const clientSchema = z
   .object({
     id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
     name: z.string().trim().min(1).max(100),
     redirectUris: z.array(z.string().max(2048)).min(1).max(8),
-    scopes: z.array(mcpScopeSchema).min(1).max(2),
+    scopes: z.array(mcpScopeSchema).min(1).max(8),
   })
   .strict();
 export type McpClient = z.infer<typeof clientSchema>;

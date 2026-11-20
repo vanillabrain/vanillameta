@@ -10,6 +10,7 @@ import PublicLayout from '@/layouts/PublicLayout';
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const AiConnections = React.lazy(() => import('@/pages/AiConnections'));
 const AiConnectionApprove = React.lazy(() => import('@/pages/AiConnections/Approve'));
+const AiArtifactView = React.lazy(() => import('@/pages/AiArtifacts/AiArtifactView'));
 const FileArtifactDetail = React.lazy(() => import('@/pages/Artifacts/FileArtifactDetail'));
 const SharedFileArtifact = React.lazy(() => import('@/pages/Artifacts/SharedFileArtifact'));
 const Documents = React.lazy(() => import('@/pages/Documents'));
@@ -75,6 +76,7 @@ function Router() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/ai-connections" element={<AiConnections />} />
           <Route path="/ai-connections/approve/:ticket" element={<AiConnectionApprove />} />
+          <Route path="/ai-artifacts/:id" element={<AiArtifactView />} />
           <Route path="/artifacts/files/:id" element={<FileArtifactDetail />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/google/callback" element={<GoogleDocumentCallback />} />

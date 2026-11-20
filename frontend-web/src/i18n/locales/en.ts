@@ -1,4 +1,10 @@
 export default {
+  aiArtifact: {
+    back: 'Artifacts',
+    loading: 'Loading artifact…',
+    error: 'This artifact cannot be opened. It was deleted or you do not have access.',
+    revision: 'Revision',
+  },
   aiConnections: {
     title: 'External AI connections',
     privacy:

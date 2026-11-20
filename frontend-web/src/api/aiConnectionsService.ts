@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { get, post } from '@/helpers/apiHelper';
 
-const scopeSchema = z.enum(['sources:read', 'documents:read']);
+const scopeSchema = z.enum(['sources:read', 'documents:read', 'artifacts:read', 'artifacts:write']);
 const scopesSchema = z
   .array(scopeSchema)
-  .max(2)
+  .max(8)
   .refine(values => new Set(values).size === values.length);
 const organizationSchema = z.object({ id: z.number().int().positive(), name: z.string() });
 const dateSchema = z.string().datetime({ offset: true });

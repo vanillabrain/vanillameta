@@ -5,7 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { aiConnectionsService, AiScope, ConsentDecision, ConsentRequest } from '@/api/aiConnectionsService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
-import { ConnectionFrame, useConnectionScope } from './shared';
+import { ConnectionFrame, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
 
 type State =
   | { kind: 'loading' }
@@ -129,7 +129,7 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
                 );
               }}
             />
-            {t(`aiConnections.${scopeName === 'sources:read' ? 'sourcesRead' : 'documentsRead'}`)}
+            {t(`aiConnections.${SCOPE_LABEL_KEYS[scopeName] ?? 'documentsRead'}`)}
           </label>
         ))}
       </fieldset>
