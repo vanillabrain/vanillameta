@@ -3,7 +3,18 @@ import { fileURLToPath } from "node:url";
 
 const groups = [
   {
-    text: "아티팩트 시작하기",
+    text: "종류별로 시작하기",
+    collapsed: false,
+    items: [
+      ["무엇을 만들까요?", "types"],
+      ["문서: 보고서 쓰기", "docs-report"],
+      ["문서: 연결 문서 가져오기", "connected-docs"],
+      ["시트: 가져와서 분석하기", "sheets"],
+      ["슬라이드: PPT·PDF 올리기", "slides"],
+    ],
+  },
+  {
+    text: "대시보드 만들기",
     collapsed: false,
     items: [
       ["1. 아티팩트 이해하기", "agent-artifacts"],

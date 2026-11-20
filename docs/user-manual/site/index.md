@@ -2,37 +2,44 @@
 layout: home
 hero:
   name: VanillaMeta
-  text: 내 데이터로 만드는 아티팩트
-  tagline: 질문으로 숫자와 차트를 만들고, 원하는 모습으로 고쳐 공유하세요.
+  text: 문서, 시트, 슬라이드, 대시보드를 한곳에서
+  tagline: 보고서를 쓰고, 시트 자료를 분석하고, 발표 자료를 올려 두고, 숫자와 차트로 대시보드를 만드세요. 모두 아티팩트 목록에 모입니다.
   actions:
     - theme: brand
-      text: 샘플로 만들어 보기
-      link: /quickstart
+      text: 무엇을 만들까요?
+      link: /types
     - theme: alt
-      text: 아티팩트란?
-      link: /agent-artifacts
+      text: 샘플로 대시보드 만들기
+      link: /quickstart
 features:
-  - title: 만들기
-    details: 샘플이나 내 파일을 선택하고, 보고 싶은 내용을 질문하세요.
+  - title: 문서
+    details: 저장한 숫자와 차트에 설명을 붙여 보고서로 쓰고, 지정한 사람에게 공유하세요.
+    link: /docs-report
+    linkText: 보고서 쓰기
+  - title: 시트
+    details: CSV와 Google 시트 자료를 가져와 지표와 차트로 분석하세요.
+    link: /sheets
+    linkText: 시트 가져오기
+  - title: 슬라이드
+    details: 만든 PPTX·PDF를 올려 두고 버전으로 관리하며 링크로 전달하세요.
+    link: /slides
+    linkText: 파일 올리기
+  - title: 대시보드
+    details: 질문으로 숫자와 차트를 만들고 고쳐서 게시하세요.
     link: /quickstart
-    linkText: 첫 아티팩트 만들기
-  - title: 다듬기
-    details: 숫자를 확인하고 제목·차트·배치를 고친 뒤 저장하세요.
-    link: /ai-edit
-    linkText: 수정하고 저장하기
-  - title: 나누고 재사용하기
-    details: 확인한 결과를 게시하거나 내 데이터로 새 사본을 만드세요.
-    link: /publish
-    linkText: 게시하고 공유하기
+    linkText: 첫 대시보드 만들기
 ---
 
-## 처음에는 이것 하나만 만들어 보세요
+## 처음에는 이 순서로
 
-**총매출 숫자 + 날짜별 매출 차트.** 준비된 비용·마진 샘플로 시작하면 업무 파일 없이 질문·미리보기·저장을 경험할 수 있습니다.
+1. **자료를 가져옵니다.** CSV나 Google 시트를 [시트](./sheets.md)로 가져옵니다. 자료가 없으면 샘플로 시작하세요.
+2. **대시보드를 만듭니다.** 총매출 숫자와 날짜별 차트를 만들어 [저장](./quickstart.md)합니다.
+3. **문서를 씁니다.** 저장한 대시보드의 숫자로 [보고서](./docs-report.md)를 쓰고 필요한 사람에게 공유합니다.
+4. **발표 자료는 올립니다.** 이미 만든 PPTX·PDF는 [슬라이드](./slides.md)로 올려 같은 목록에서 관리합니다.
 
-[첫 아티팩트 만들기 →](./quickstart.md)
+네 종류가 어떻게 다른지는 [무엇을 만들까요?](./types.md)에 한눈에 정리되어 있습니다.
 
-아티팩트는 **데이터와 계산 기준이 연결된 대시보드**입니다. 제품 화면에서는 ‘대시보드’로 표시되며, **Studio**에서 편집합니다. 코드를 작성하지 않아도 시작할 수 있습니다.
+아티팩트는 VanillaMeta에서 **만들거나 올린 결과물**입니다. 보고서와 대시보드는 앱 안에서 쓰고 고치며, 시트와 슬라이드는 가져오거나 올립니다. 코드를 작성하지 않아도 시작할 수 있습니다.
 
 ## 다음에 하고 싶은 일
 
