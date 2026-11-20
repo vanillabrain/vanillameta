@@ -18,6 +18,12 @@ if [ -n "${VM_COLIMA_PROFILE:-}" ]; then
   export DOCKER_HOST="unix://$HOME/.colima/$VM_COLIMA_PROFILE/docker.sock"
 fi
 unset DOCKER_CONTEXT
+# 자격 증명 도우미가 없으면 비어 있는 설정 디렉터리를 쓴다(이미지 pull 은 익명으로 간다).
+# 사용자의 ~/.docker/config.json 은 읽거나 고치지 않는다.
+if [ -z "${DOCKER_CONFIG:-}" ] && ! command -v docker-credential-desktop >/dev/null 2>&1; then
+  export DOCKER_CONFIG="${XDG_CACHE_HOME:-$HOME/.cache}/vanillameta-verify/docker-config"
+  mkdir -p "$DOCKER_CONFIG"
+fi
 command -v curl >/dev/null || { echo "curl 이 필요합니다" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 가 필요합니다" >&2; exit 2; }
 if docker compose version >/dev/null 2>&1; then COMPOSE=(docker compose); else
