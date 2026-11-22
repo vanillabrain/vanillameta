@@ -1,109 +1,98 @@
-# 내 AI로 연결하기 (원격 MCP, 쓰기 기능 준비 중)
+# 내 AI로 연결하기 (원격 MCP)
 
-팀원은 자기가 쓰는 AI(Claude Code 등)를 VanillaMeta의 **원격 MCP**(`/v1/mcp`)에 연결해, 대화로 내 대시보드를 만들고 고치고 보고서에 댓글을 남길 수 있습니다. 서버 AI는 필요 없습니다. AI는 **내 계정의 권한 안에서** 일하고, 무엇을 허용할지는 연결할 때 내가 고릅니다.
+Codex나 Claude Code를 VanillaMeta의 **원격 MCP**(`/v1/mcp`)에 연결하면 대화에서 내 AI 아티팩트를 조회·생성·수정할 수 있습니다. 서버의 AI 실행 환경 없이 AI 클라이언트가 도구 호출을 조율합니다.
 
-::: warning 일부만 지금 쓸 수 있습니다
-**지금 서버에서 쓸 수 있는 것**: 원격 연결(OAuth 승인)과 소스·문서 읽기 도구(`vm_list_sources`, `vm_describe_source`, `vm_list_documents`, `vm_read_document`, 권한 `sources:read`·`documents:read`). 운영자가 원격 연결을 켜고 AI 클라이언트를 등록해 두었을 때 쓸 수 있습니다.
+처음 연결한다면 [Codex로 첫 차트 만들기](./codex-first-chart.md)부터 따라 하세요. 승인 화면, 두 요청 문장, 수정 결과와 다시 여는 방법을 한 흐름으로 확인할 수 있습니다.
 
-**개발 중이며 아직 서버에 없는 것**: 이 페이지의 대시보드 만들기·수정·되돌리기·삭제 도구, 보고서·댓글·공유 도구와 그 권한, 조직 등급. 화면은 개발 환경에서 찍은 것입니다.
-
-로컬 stdio MCP 서버로 연결하는 방법은 [MCP로 연결하고 분석 만들기](./mcp.md)에 있습니다. 개발 중인 기능이 적용되면 이 페이지가 안내의 중심이 됩니다.
+::: info 현재 범위는 개인 AI 아티팩트입니다
+원격 MCP의 쓰기 범위는 승인한 계정이 소유한 AI 아티팩트에만 적용됩니다. 일반 대시보드·Studio 분석·보고서·댓글·공유의 기존 권한과 분리되어 있으며, 이 MCP 도구로 그 자료를 만들거나 수정하거나 공유할 수 없습니다.
 :::
 
-## 1. 준비할 것
+## 준비할 것
 
-- 운영자가 원격 연결을 켜고 AI 클라이언트를 등록해 두었는지 확인합니다. 등록은 운영자의 일입니다. 클라이언트마다 허용 범위가 정해지고, 범위를 바꾸면 **모든 연결이 끊겨** 다시 연결해야 합니다.
-- 조직 구성원이어야 합니다. 연결한 AI는 내 **등급**을 넘지 못합니다. `viewer`는 읽기만, `contributor` 이상은 만들기·수정·삭제까지 허용되고, 조직 관리자라도 남이 만든 대시보드는 열지 못합니다.
-- 대시보드를 만들려면 본인이 소유한 데이터 소스(DuckDB 파일 소스)와 그 소스의 **저장 지표**가 있어야 합니다. 소스를 찾는 도구는 `sources:read` 권한이므로 `dashboards:*`와 함께 승인합니다. 지표는 앱의 [지표](./metrics.md) 화면에서 먼저 만들어 둡니다.
+- 원격 MCP를 켠 VanillaMeta 서버
+- 운영자가 등록한 AI 클라이언트 ID와 정확한 loopback callback
+- 조직 구성원 계정
+- 승인 화면에서 확인할 AI 클라이언트, 계정, 조직
 
-## 2. 연결과 승인
+VanillaMeta는 동적 클라이언트 등록(DCR/CIMD)을 제공하지 않습니다. 운영자가 `MCP_OAUTH_CLIENTS_JSON`에 클라이언트와 redirect URI를 미리 등록해야 합니다. Codex의 고정 callback 설정과 전체 명령은 [Codex로 첫 차트 만들기](./codex-first-chart.md)의 접힌 **운영자 준비** 절을 따릅니다.
 
-AI 클라이언트에서 연결을 시작합니다. Claude Code의 예입니다.
+## 연결과 승인
 
-```sh
-claude mcp add --transport http --client-id <운영자가 알려 준 id> --callback-port <포트> vanillameta <API 주소>/mcp
-```
+로그인한 AI 클라이언트가 `/v1/mcp`의 OAuth 보호 리소스 metadata를 읽고 승인 화면을 엽니다. 브라우저에서 다음 값을 확인합니다.
 
-열린 VanillaMeta 화면에서 허용할 권한을 고르고 **연결 승인**을 누릅니다. 읽기 권한은 기본 선택이고, **쓰기·삭제 권한은 기본 해제**이며 경고가 붙습니다. 필요한 것만 직접 선택하세요.
+- **AI 클라이언트**가 연결하려는 Codex 또는 Claude Code인지
+- **로그인 계정**과 **현재 조직**이 맞는지
+- 필요한 읽기·쓰기 범위가 선택되어 있는지
 
-![외부 AI 연결 승인 화면: 읽기 범위는 선택되어 있고 쓰기 범위는 해제되어 경고가 보임](../images/45-mcp-consent-default.png)
+쓰기 범위는 자동으로 선택되지 않습니다. AI가 차트를 만들고 수정해야 할 때 **내 아티팩트 만들기·수정·삭제**를 직접 선택하고 **연결 승인**을 누릅니다.
 
-쓰기 범위는 사람이 직접 체크해야 하며, 아래는 대시보드 쓰기·삭제를 체크한 상태입니다(화면 아래쪽에서 **연결 승인**을 누릅니다).
+![Codex 원격 MCP 승인 화면에서 조직과 두 아티팩트 범위를 확인한 모습](../images/first-chart-consent.png)
 
-![쓰기 범위를 직접 체크한 승인 화면](../images/46-mcp-consent-write-checked.png)
+**요청 취소**를 누르거나 창을 닫으면 연결되지 않습니다. AI 클라이언트에서 MCP 로그인을 다시 시작하세요.
 
-승인하면 아티팩트 목록의 **외부 AI 연결**에 연결이 나타나며 **연결 해제**로 언제든 끊을 수 있습니다.
+## 권한과 도구
 
-![외부 AI 연결 목록: 클라이언트 이름, 허용 범위, 승인 만료와 연결 해제 버튼](../images/47-ai-connections-list.png)
-
-해제한 연결은 "연결 해제됨"으로 바뀌고 그 토큰은 바로 거절됩니다.
-
-![해제된 연결: 버튼이 비활성이고 연결 해제됨이 표시](../images/48-ai-connections-revoked.png)
-
- 승인한 연결은 최대 8시간 동안 다시 묻지 않고 유지되며(토큰은 10분마다 AI 클라이언트가 자동 갱신), 이미 쓰인 갱신 토큰이 다시 쓰이면 연결이 자동으로 해제됩니다.
-
-## 3. 권한과 도구
-
-| 권한 | 도구 | 하는 일 |
+| 권한 | 도구 | 범위 |
 | --- | --- | --- |
-| `dashboards:read` | `vm_list_dashboards`, `vm_read_dashboard` | **내가 만든** 대시보드와 변경 이력 읽기 (공유받은 것은 제외) |
-| `dashboards:write` | `vm_list_metrics`, `vm_preview_dashboard`, `vm_create_dashboard`, `vm_update_dashboard`, `vm_restore_dashboard` | 소스의 저장 지표 찾기, 저장 지표로 미리보기·만들기, 제목·배치·표시·필터 수정과 블록 삭제, 이전 저장본으로 되돌리기 |
-| `dashboards:delete` | `vm_get_dashboard_removal`, `vm_remove_dashboard` | 사용처가 없는 내 대시보드 삭제 (되돌릴 수 없음) |
-| `sources:read` | `vm_list_sources`, `vm_describe_source` | 소스 이름과 열 이름·타입 (원본 행은 제외) |
-| `documents:read` | `vm_list_documents`, `vm_read_document` | 내 보관 문서 읽기 |
-| `reports:read` | `vm_list_reports`, `vm_read_report` | 내 보고서와 공유받은 보고서 읽기 |
-| `comments:read` | `vm_list_comments` | 볼 수 있는 댓글 스레드와 제안 읽기 |
-| `comments:write` | `vm_add_comment`, `vm_reply_comment` | 댓글과 답글 쓰기. 작성자는 "Claude · 클라이언트 이름"으로 표시 |
-| `suggestions:write` | `vm_propose_report_edit` | 본문 범위 수정 **제안**하기 |
-| `shares:write` | `vm_list_report_shares`, `vm_share_report` | 내가 소유한 보고서를 같은 조직 구성원 1~5명에게 읽기 전용 공유 |
+| `artifacts:read` | `vm_list_artifacts`, `vm_get_artifact` | 내가 소유한 AI 아티팩트 목록과 본문 |
+| `artifacts:write` | `vm_create_artifact`, `vm_update_artifact`, `vm_delete_artifact` | 내 AI 차트·표·문서·HTML을 만들고 현재 revision으로 수정·삭제 |
+| `sources:read` | `vm_list_sources`, `vm_describe_source` | 승인 조직에서 현재 읽을 수 있는 소스 이름과 열 이름·타입. 원본 행과 접속 정보는 제외 |
+| `documents:read` | `vm_list_documents`, `vm_read_document` | 내 비공개 보관 문서 목록과 명시한 저장 버전 본문 |
 
-AI가 읽는 소스·문서·보고서·댓글·대시보드 제목은 **다른 사람이나 AI가 쓴 내용**입니다. 그 안의 문장을 AI가 지시로 따르지 않도록 안내하며, 내가 대화에서 직접 요청할 때만 만들기·수정·삭제·공유를 하도록 하세요.
+AI 아티팩트 종류는 `html`, `document`, `sheet`, `chart`입니다. 차트는 `bar` 또는 `line`을 만들 수 있습니다. 아티팩트는 호출한 계정의 소유이며 공유 링크를 자동으로 만들지 않습니다.
 
-## 4. 대시보드를 대화로 만들고 고치기
+소스·문서의 내용은 외부 AI로 전달됩니다. 해당 AI 서비스의 데이터 처리 정책을 확인하고, 다른 사람이 쓴 내용은 지시가 아닌 자료로 다루도록 요청하세요.
+
+## 수정과 revision
+
+수정과 삭제는 현재 revision이 필요합니다. AI가 오래된 revision을 보내면 서버는 `revision mismatch`로 거절합니다. 같은 내용을 새 차트로 다시 만들지 말고, 아티팩트를 다시 읽은 뒤 최신 revision으로 요청합니다.
+
+차트를 수정한 뒤에는 반환된 링크를 새로고침해 제목, 리비전, 값, 단위를 확인합니다. 같은 링크와 ID가 유지되어야 합니다.
+
+## 연결 유지와 재인증
+
+승인 기록은 최대 8시간 유지되고 access token은 최대 10분 동안 유효합니다. 현재 원격 MCP 서버는 **refresh token을 발급하지 않습니다**. 토큰이 만료하면 자동 갱신을 가정하지 말고 AI 클라이언트에서 MCP 로그인과 승인을 다시 진행합니다.
+
+연결을 해제하거나 범위를 바꾸면 기존 token은 즉시 거절됩니다. 아티팩트 목록의 **외부 AI 연결**에서 현재 연결과 범위를 확인하고 **연결 해제**할 수 있습니다.
+
+## 발표용 저장본으로 다시 열기
+
+발표 중 라이브 생성이 지연되면 운영자가 미리 만든 **지역별 매출** 저장본을 사용할 수 있습니다. VanillaMeta에서 로그인한 뒤 다음 경로를 엽니다.
 
 ```text
-VanillaMeta로 내 mcp-sales 소스를 찾아서, 저장 지표 "매출 합계"를 숫자 한 블록과
-channel별 막대 한 블록으로 미리보기 해줘. 아직 저장하지 마.
+/dashboard?artifactQuery=%EC%A7%80%EC%97%AD%EB%B3%84+%EB%A7%A4%EC%B6%9C&artifactKind=ai
 ```
 
-1. **지표 찾기** `vm_list_metrics`: 내 소스의 저장 지표와 그 `id`·`definitionVersion`을 확인합니다. 열은 `vm_describe_source`가 알려 주며 꺾은선 차트에는 날짜 열이 필요합니다.
-2. **미리보기** `vm_preview_dashboard`: 저장 지표(`{id, definitionVersion}`)만 쓸 수 있고 새 지표 정의·수식은 지원하지 않습니다. 계산된 값을 돌려주며 아무것도 저장하지 않습니다. 결과의 숫자를 직접 검토하세요.
-3. **만들기** `vm_create_dashboard`: 검토한 같은 입력과 미리보기의 `previewDigest`로 저장합니다. 그 사이 데이터나 지표가 바뀌었으면 `PREVIEW_STALE`로 거절되니 다시 미리보기합니다. 앱의 대시보드 목록과 Studio에서 사람이 만든 것과 똑같이 열립니다.
+화면 상단의 **내 아티팩트**와 **산출물 제목 검색** 입력란에 `지역별 매출`이 채워졌는지 확인합니다. **AI 차트 · 버전 2**를 열면 서울 120, 부산 100과 범례 **매출 (만원) · 발표용 합성 데이터**가 보입니다. 이 경로는 저장본을 다시 열 뿐 새 생성 요청을 보내지 않습니다.
 
-![AI가 만든 대시보드가 아티팩트 목록에 나타난 모습](../images/49-mcp-dashboard-list.png)
+## 오류와 다음 동작
 
-![AI가 만든 대시보드를 열면 저장 지표의 숫자와 시계열이 보임](../images/50-mcp-dashboard-view.png)
-
-4. **수정** `vm_update_dashboard`: 제목, 블록 제목·설명·표시, 위치·크기, 필터·기간, 블록 삭제만 됩니다. 블록 추가나 계산 정의 변경은 지원하지 않습니다(`UNSUPPORTED_CHANGE`). 읽은 `revision`을 함께 보내므로 그 사이 다른 곳에서 바뀌었으면 거절되고 다시 읽습니다. 아래는 AI가 제목만 "수정"으로 바꾼 뒤의 화면입니다.
-
-![AI가 제목을 바꾼 대시보드: 값과 차트는 그대로](../images/51-mcp-dashboard-renamed.png)
-5. **되돌리기** `vm_restore_dashboard`: 변경 이력에서 고른 저장본으로 되돌립니다. 되돌리기도 새 이력으로 남아 다시 취소할 수 있습니다. 지운 블록은 새 블록으로 다시 만들어지며 그 블록의 차트 댓글 위치는 떨어질 수 있습니다. 표시·배치·제목·필터·블록 존재만 되돌리고, 지금의 지표나 열로 되살릴 수 없는 저장본은 거절됩니다.
-6. **삭제** `vm_get_dashboard_removal`로 사용처를 확인한 뒤 `vm_remove_dashboard`: 공유·권한·전달·게시가 남아 있으면 목록과 함께 거절됩니다. 그 설정을 직접 중지한 뒤 다시 요청하세요. 삭제하면 댓글과 이력도 함께 지워집니다. 앱에서 직접 삭제를 눌러도 같은 안내가 나옵니다.
-
-![게시가 남아 있어 삭제할 수 없다는 안내와 사용처 목록](../images/52-mcp-delete-blocked.png)
-
-**만들기·수정·되돌리기는 모두 변경 이력에 기록됩니다**(삭제하면 이력도 함께 지워집니다). 사람이 저장한 것과 AI가 한 것이 구분되고, AI가 처음 고치기 직전 상태도 따로 남아 되돌릴 수 있습니다. 호스트가 수정·되돌리기·삭제 호출 전에 확인을 요청하도록(`destructive` 표시) 설정되어 있어도 그대로 승인 절차를 따르세요.
-
-## 5. 보고서 협업
-
-- 읽기 권한은 기본 선택이고, 쓰기 권한(`comments:write`, `suggestions:write`, `shares:write`)은 기본 해제입니다. `shares:write`에는 공유 경고가 따로 붙습니다.
-- 댓글·제안 위치는 인용문(`quote`)으로 지정해 오프셋을 계산할 필요가 없습니다. 같은 문장이 여러 번 나오면 몇 번째인지(`occurrence`)를 함께 보냅니다.
-- **적용은 사람이 합니다.** AI의 제안은 보고서 편집 화면에 "Claude · 클라이언트 이름"으로 나타나고, 소유자가 **본문에 적용**한 뒤 **비공개 저장**해야 반영됩니다. 보고서·문서·소스에는 적용·저장·게시·삭제 도구가 없습니다.
-- AI가 공유하면 공유 관리 목록에 "Claude가 공유함 · 클라이언트 이름"으로 표시됩니다. 회수는 직접 합니다.
-
-## 6. 오류와 재시도
-
-| 오류 | 의미와 다음 동작 |
+| 오류 | 다음 동작 |
 | --- | --- |
-| `CONFLICT` (`REVISION_CHANGED`, `SOURCE_CHANGED`, `PREVIEW_STALE`) | 그 사이 대시보드·데이터·지표가 바뀜. 다시 읽거나 다시 미리보기하고 **같은 요청 ID**로 재시도 |
-| `REQUEST_REUSED` | 그 요청 ID로 이미 다른 내용이 처리됨. 새 요청 ID로 반복하지 말고 현재 상태를 읽어 확인 |
-| `INVALID` (`UNSUPPORTED_CHANGE`, `RESTORE_STALE`, `HAS_DEPENDENCIES`) | 재시도해도 소용없음. 사용자에게 알리고 사용처 중지·지표 확인 등 사람이 할 일을 안내 |
-| `LIMIT` (`RATE_LIMITED`) | 짧은 시간에 너무 많이 호출함(쓰기 분당 20회, 생성 시간당 10개, 삭제 분당 10회, 미리보기 분당 10회). 잠시 뒤 같은 요청 ID로 재시도 |
-| `UNAUTHORIZED` | 연결이 해제·만료됨. AI 클라이언트에서 다시 연결 |
-| `FORBIDDEN` / `NOT_FOUND` | 내 등급·소유 밖이거나 존재하지 않음. 권한을 우회하지 않음 |
+| `invalid_client` | 운영자에게 클라이언트 ID와 callback의 scheme, host, 포트, 전체 path가 등록값과 같은지 확인합니다. |
+| `invalid_request`에서 `resource`를 지적함 | `--oauth-resource`에 MCP 주소를 중복 지정하지 않습니다. resource metadata의 값을 사용합니다. |
+| 401 또는 도구 없음 | AI 클라이언트에서 이 MCP만 다시 로그인합니다. Codex 로그인 전체를 해제하는 `codex logout`은 사용하지 않습니다. |
+| `revision mismatch` | 아티팩트를 다시 읽고 최신 revision으로 수정합니다. |
+| 다른 계정에도 아티팩트가 보임 | 발표를 멈추고 로그인 계정과 연결 조직을 확인합니다. |
 
-시간 초과나 응답 유실이 있으면 성공·실패를 단정하지 말고 **같은 요청 ID와 같은 내용**으로 다시 보내 결과를 확인합니다.
+## 격리 Compose 실행
 
-::: info 검증 범위
-대시보드 도구는 합성 데이터로 단위·통합 테스트(실제 DuckDB, SQLite)로 확인했고, 2026-11-07에는 로컬 Docker 스택(PostgreSQL 17)에서 71개 화면·API 시나리오를 모두 통과했습니다. 이 페이지의 화면은 그 실행에서 찍은 것이며 검증용 계정(`guest`)과 합성 데이터만 보입니다. 외부 AI 쪽은 스크립트로 만든 OAuth 클라이언트가 호출한 것이어서, Claude Code 같은 실제 호스트가 보여 주는 승인 화면과 호출 흐름은 이 화면에 포함되지 않습니다.
-:::
+발표 환경은 저장소 루트의 기본 Compose와 발표용 overlay를 함께 실행합니다. 이 프로젝트 이름으로 만든 컨테이너와 볼륨만 사용합니다.
+
+```sh
+docker compose -p vm-demo1123 -f docker-compose.yml -f compose.demo.yml up -d --build --wait
+```
+
+도움말은 별도로 빌드하고 미리 봅니다.
+
+```sh
+npm run docs:build
+npm --prefix docs/user-manual run preview -- --host 127.0.0.1 --port 4174
+```
+
+발표 뒤 같은 두 Compose 파일과 프로젝트 이름으로 `down`을 실행합니다.
+
+```sh
+docker compose -p vm-demo1123 -f docker-compose.yml -f compose.demo.yml down
+```

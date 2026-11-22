@@ -8,6 +8,7 @@
 | --- | --- |
 | 1. [아티팩트 이해하기](./agent-artifacts.md) | 대시보드·Studio·블록의 관계 알기 |
 | 2. [첫 아티팩트 만들기](./quickstart.md) | 샘플로 숫자와 차트를 만들고 저장하기 |
+| 2a. [Codex로 첫 차트 만들기](./codex-first-chart.md) | 원격 MCP로 지역별 차트를 만들고 같은 리비전을 수정하기 |
 | 3. [수정하고 저장하기](./ai-edit.md) | 질문·직접 편집으로 결과 다듬기 |
 | 4. [게시하고 공유하기](./publish.md) | 공개 범위를 정하고 링크 전달하기 |
 | 5. [복제해서 재사용하기](./reuse.md) | 원본을 보존하며 새 분석 만들기 |
@@ -29,8 +30,9 @@
 
 - [조직 공유와 권한](./organization.md) · [직원 공유·재사용 실습](./team-reuse-walkthrough.md)
 - [관리자용 AI 실행 환경](./agent-connection.md)
+- [Codex로 첫 차트 만들기](./codex-first-chart.md)
 - [외부 에이전트의 MCP 연결](./mcp.md)
-- [원격 MCP 연결](./remote-mcp.md) (읽기는 사용 가능, 쓰기 기능은 준비 중)
+- [원격 MCP 연결](./remote-mcp.md) (개인 AI 아티팩트 읽기·쓰기)
 
 ## 상세 참고
 

@@ -36,6 +36,7 @@ const groups = [
       ["조직 공유와 권한", "organization"],
       ["조직 공유·재사용 실습", "team-reuse-walkthrough"],
       ["관리자용 AI 실행 환경", "agent-connection"],
+      ["Codex로 첫 차트 만들기", "codex-first-chart"],
       ["MCP 연결·직접 제작", "mcp"],
       ["원격 MCP 연결", "remote-mcp"],
     ],
