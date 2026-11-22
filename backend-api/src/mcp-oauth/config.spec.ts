@@ -1,4 +1,4 @@
-import { readMcpConfig } from './config';
+import { readMcpConfig, supportedMcpScopes } from './config';
 describe('MCP canonical configuration', () => {
   const env = {
     NODE_ENV: 'local',
@@ -19,6 +19,18 @@ describe('MCP canonical configuration', () => {
       issuer: 'http://127.0.0.1:4265/v1/mcp-oauth',
       resource: 'http://127.0.0.1:4265/v1/mcp',
     });
+  });
+  it('advertises each configured scope once across clients', () => {
+    const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
+    const config = readMcpConfig({
+      ...env,
+      MCP_OAUTH_CLIENTS_JSON: JSON.stringify([
+        { ...client, scopes: ['artifacts:read'] },
+        { ...client, id: 'writer', scopes: ['artifacts:read', 'artifacts:write'] },
+      ]),
+    });
+    if (!config) throw new Error('Expected valid clients');
+    expect(supportedMcpScopes(config)).toEqual(['artifacts:read', 'artifacts:write']);
   });
   it('requires complete settings and HTTPS in production', () => {
     expect(readMcpConfig({})).toBeNull();

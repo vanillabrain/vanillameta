@@ -26,6 +26,10 @@ export type McpConfig = {
   fingerprint: string;
 };
 
+export function supportedMcpScopes(config: McpConfig): McpScope[] {
+  return [...new Set(config.clients.flatMap(client => client.scopes))];
+}
+
 function endpoint(value: string, production: boolean, callback = false): URL {
   const url = new URL(value);
   if (

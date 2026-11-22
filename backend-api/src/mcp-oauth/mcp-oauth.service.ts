@@ -15,7 +15,7 @@ import { lockSourceActor, sourceWriteTransaction } from '../database/source-writ
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { User } from '../user/entities/user.entity';
-import { McpConfig, mcpScopeSchema, readMcpConfig } from './config';
+import { McpConfig, mcpScopeSchema, readMcpConfig, supportedMcpScopes } from './config';
 import { McpOAuthCode, McpOAuthGrant, McpOAuthPending, McpOAuthToken } from './mcp-oauth.entities';
 
 export type McpOAuthActor = { actorId: number; authVersion: number };
@@ -95,7 +95,7 @@ export class McpOAuthService {
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
       revocation_endpoint_auth_methods_supported: ['none'],
-      scopes_supported: ['sources:read', 'documents:read', 'artifacts:read', 'artifacts:write'],
+      scopes_supported: supportedMcpScopes(config),
       code_challenge_methods_supported: ['S256'],
     };
   }

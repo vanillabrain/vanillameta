@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { z } from 'mcp-zod';
 import { McpOAuthService } from './mcp-oauth.service';
-import { readMcpConfig } from './config';
+import { readMcpConfig, supportedMcpScopes } from './config';
 import { McpReadService } from './mcp-read.service';
 import { McpOAuthModule } from './mcp-oauth.module';
 import { BiModule } from '../bi/bi.module';
@@ -24,7 +24,7 @@ export function authorizationMetadata() {
     grant_types_supported: ['authorization_code'],
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: ['sources:read', 'documents:read', 'artifacts:read', 'artifacts:write'],
+    scopes_supported: supportedMcpScopes(c),
   };
 }
 @Controller('.well-known')
@@ -44,12 +44,7 @@ export class McpMetadataController {
         ? {
             resource: c.resource,
             authorization_servers: [c.issuer],
-            scopes_supported: [
-              'sources:read',
-              'documents:read',
-              'artifacts:read',
-              'artifacts:write',
-            ],
+            scopes_supported: supportedMcpScopes(c),
             bearer_methods_supported: ['header'],
           }
         : { error: 'temporarily_unavailable' },
