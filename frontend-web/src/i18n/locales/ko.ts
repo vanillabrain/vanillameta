@@ -1,5 +1,16 @@
 export default {
   aiArtifact: {
+    history: '버전 기록',
+    latestRevision: '버전 {{revision}} · 최신',
+    pastRevision: '버전 {{revision}} · 이전',
+    unavailableRevision: '이 버전을 열 수 없습니다.',
+    returnLatest: '최신 버전으로 돌아가기',
+    historyError: '버전 기록을 불러오지 못했습니다.',
+    retryHistory: '다시 시도',
+    recipients: '열람 가능한 구성원',
+    noRecipients: '현재 공유 중인 구성원이 없습니다.',
+    recipientsError: '구성원 목록을 불러오지 못했습니다.',
+    revokePerson: '{{login}} 공유 회수',
     shareTitle: '조직 구성원과 공유',
     shareHint: '수신자는 허브의 공유받음에서 최신 버전을 읽을 수 있습니다.',
     recipient: '수신자 로그인 ID',

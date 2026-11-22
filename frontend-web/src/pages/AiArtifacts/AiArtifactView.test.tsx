@@ -1,13 +1,13 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import AiArtifactView from './AiArtifactView';
 import { aiArtifactService } from '@/api/aiArtifactService';
 
 vi.mock('@/api/aiArtifactService', () => ({
-  aiArtifactService: { detail: vi.fn() },
+  aiArtifactService: { detail: vi.fn(), revisions: vi.fn(), revision: vi.fn() },
 }));
 vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: () => 'session-a' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -85,4 +85,40 @@ it('shows real chart values as visible rows and labels bars without replacing su
   expect(series).toContain('"name":"Net revenue"');
   expect(series).toContain('"show":true');
   expect(series).toContain('"position":"top"');
+});
+
+const current = {
+  id, kind: 'document' as const, role: 'owner' as const, title: 'Latest title',
+  updatedAt: '2026-11-22T00:00:00.000Z', revision: 2, content: { markdown: 'Latest body' },
+};
+
+it('opens a saved revision URL and restores the current version on explicit return', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revisions).mockResolvedValue([2, 1].map(revision => ({ revision, updatedAt: current.updatedAt })));
+  vi.mocked(aiArtifactService.revision).mockResolvedValue({ ...current, revision: 1, title: 'Earlier title', content: { markdown: 'Earlier body' } });
+  show('/ai-artifacts/' + id + '?revision=1');
+  await screen.findByText('Earlier body');
+  expect(screen.queryByText('Latest body')).toBeNull();
+  expect(screen.queryByText('aiArtifact.shareTitle')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.returnLatest' }));
+  await screen.findByText('Latest body');
+  expect(screen.queryByText('Earlier body')).toBeNull();
+});
+
+it('never requests historical content or its index on a recipient link', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue({ ...current, role: 'recipient' });
+  show('/ai-artifacts/' + id + '?revision=1');
+  await screen.findByText('Latest body');
+  expect(screen.getByText('aiArtifact.readOnly')).toBeTruthy();
+  expect(aiArtifactService.revisions).not.toHaveBeenCalled();
+  expect(aiArtifactService.revision).not.toHaveBeenCalled();
+});
+
+it('does not display the latest body as a missing old version', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revisions).mockResolvedValue([{ revision: 2, updatedAt: current.updatedAt }]);
+  vi.mocked(aiArtifactService.revision).mockRejectedValue(new Error('Unavailable'));
+  show('/ai-artifacts/' + id + '?revision=1');
+  expect((await screen.findByRole('alert')).textContent).toContain('aiArtifact.unavailableRevision');
+  expect(screen.queryByText('Latest body')).toBeNull();
 });

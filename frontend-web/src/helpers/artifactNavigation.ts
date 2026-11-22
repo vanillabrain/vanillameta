@@ -7,12 +7,13 @@ const contextSchema = z
     kind: z.enum(['all', 'analysis', 'dashboard', 'report', 'google', 'file', 'ai']),
     sort: z.enum(['recent', 'title']),
     display: z.enum(['list', 'grid']),
+    scope: z.enum(['mine', 'shared']).optional(),
     view: z.enum(['active', 'archived']),
   })
   .strict();
 type ArtifactContext = z.infer<typeof contextSchema>;
 const defaults: ArtifactContext = { version: 1, query: '', kind: 'all', sort: 'recent', display: 'list', view: 'active' };
-const fields = ['artifactQuery', 'artifactKind', 'artifactSort', 'artifactDisplay', 'artifactView'];
+const fields = ['artifactQuery', 'artifactKind', 'artifactSort', 'artifactDisplay', 'artifactView', 'artifactScope'];
 
 function readContext(pathname: string, search: string): ArtifactContext {
   const params = new URLSearchParams(search);
@@ -24,6 +25,7 @@ function readContext(pathname: string, search: string): ArtifactContext {
       kind: params.get('artifactKind') ?? 'all',
       sort: params.get('artifactSort') ?? 'recent',
       display: params.get('artifactDisplay') ?? 'list',
+      scope: params.get('artifactScope') ?? undefined,
       view: params.get('artifactView') ?? 'active',
     });
     return result.success ? result.data : defaults;
@@ -46,6 +48,7 @@ export function artifactListNavigation({ pathname, search }: { pathname: string;
   if (context.sort !== 'recent') params.set('artifactSort', context.sort);
   if (context.display !== 'list') params.set('artifactDisplay', context.display);
   if (context.view !== 'active') params.set('artifactView', context.view);
+  if (context.scope === 'shared') params.set('artifactScope', 'shared');
   const query = params.toString();
   return {
     listHref: '/dashboard' + (query ? '?' + query : ''),

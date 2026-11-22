@@ -29,6 +29,8 @@ it('limits received charts to an explicit current grant and keeps authoring owne
     await sharing.set(owner.id, id, grant);
     await sharing.set(owner.id, id, grant);
     expect((await sharing.list(reader.id)).items.map(row => row.id)).toEqual([id]);
+    expect((await sharing.recipients(owner.id, id)).recipients).toEqual([{ login: 'reader' }]);
+    await expect(sharing.recipients(reader.id, id)).rejects.toBeInstanceOf(NotFoundException);
     expect(await sharing.read(reader.id, id)).toMatchObject({ role: 'recipient', revision: 1 });
     await expect(authoring.update({ actorId: reader.id }, { id, expectedRevision: 1, title: 'Changed' })).rejects.toBeInstanceOf(NotFoundException);
     await expect(sharing.set(reader.id, id, { login: owner.userId, active: true })).rejects.toBeInstanceOf(NotFoundException);
@@ -38,6 +40,7 @@ it('limits received charts to an explicit current grant and keeps authoring owne
     await sharing.set(owner.id, id, grant);
     await db.manager.update(User, reader.id, { authVersion: 1 });
     expect((await sharing.list(reader.id)).items).toHaveLength(0);
+    expect((await sharing.recipients(owner.id, id)).recipients).toEqual([]);
     expect(await authoring.get({ actorId: owner.id }, id)).toMatchObject({ title: 'Sales', revision: 1 });
   } finally {
     await db.destroy();

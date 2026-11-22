@@ -1,5 +1,16 @@
 export default {
   aiArtifact: {
+    history: 'Version history',
+    latestRevision: 'Version {{revision}} · Latest',
+    pastRevision: 'Version {{revision}} · Previous',
+    unavailableRevision: 'This version is unavailable.',
+    returnLatest: 'Return to latest version',
+    historyError: 'Version history could not be loaded.',
+    retryHistory: 'Try again',
+    recipients: 'People with access',
+    noRecipients: 'No one has access yet.',
+    recipientsError: 'Could not load recipients.',
+    revokePerson: 'Revoke access for {{login}}',
     shareTitle: 'Share with a teammate',
     shareHint: 'The recipient can open the latest version under Shared with me.',
     recipient: 'Recipient login ID',

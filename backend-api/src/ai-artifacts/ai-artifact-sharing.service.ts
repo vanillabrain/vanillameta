@@ -10,14 +10,28 @@ import { AiArtifactShare } from './ai-artifact-share.entity';
 export class AiArtifactSharingService {
   constructor(private readonly db: DataSource) {}
 
-  private received(actorId: number) {
+  private activeGrants() {
     return this.db.getRepository(AiArtifact).createQueryBuilder('artifact')
-      .innerJoin(AiArtifactShare, 'grantRow', 'grantRow.artifactId = artifact.id AND grantRow.recipientId = :actorId', { actorId })
+      .innerJoin(AiArtifactShare, 'grantRow', 'grantRow.artifactId = artifact.id')
       .innerJoin(EnterpriseMembership, 'sender', 'sender.userId = artifact.ownerId AND sender.organizationId = artifact.organizationId')
       .innerJoin(EnterpriseMembership, 'recipient', 'recipient.userId = grantRow.recipientId AND recipient.organizationId = artifact.organizationId')
       .innerJoin(User, 'ownerUser', 'ownerUser.id = sender.userId AND ownerUser.active = true AND ownerUser.authVersion = grantRow.ownerEpoch')
       .innerJoin(User, 'reader', 'reader.id = recipient.userId AND reader.active = true AND reader.authVersion = grantRow.recipientEpoch')
       .where('artifact.deletedAt IS NULL');
+  }
+
+  private received(actorId: number) {
+    return this.activeGrants().andWhere('grantRow.recipientId = :actorId', { actorId });
+  }
+
+  async recipients(ownerId: number, id: string) {
+    if (!(await this.db.getRepository(AiArtifact).existsBy({ id, ownerId, deletedAt: IsNull() }))) {
+      throw new NotFoundException();
+    }
+    const recipients = await this.activeGrants()
+      .andWhere('artifact.id = :id AND artifact.ownerId = :ownerId', { id, ownerId })
+      .select('reader.userId', 'login').orderBy('reader.userId', 'ASC').getRawMany<{ login: string }>();
+    return { recipients };
   }
 
   async list(actorId: number) {

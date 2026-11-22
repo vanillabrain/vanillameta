@@ -87,7 +87,17 @@ function Dashboard() {
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [needsRead, setNeedsRead] = useState(false);
   const [archiveError, setArchiveError] = useState('');
-  const [hubScope, setHubScope] = useState<'mine' | 'shared'>('mine');
+  const hubScope = searchParams.get('artifactScope') === 'shared' ? 'shared' : 'mine';
+  const setHubScope = (nextScope: 'mine' | 'shared') => {
+    const next = new URLSearchParams(searchParams);
+    if (nextScope === 'shared') {
+      next.set('artifactScope', 'shared');
+      next.delete('artifactView');
+    } else {
+      next.delete('artifactScope');
+    }
+    setSearchParams(next);
+  };
   const [received, setReceived] = useState<ReceivedDashboard[]>([]);
   const [receivedNext, setReceivedNext] = useState<number | null>(null);
   const [receivedBusy, setReceivedBusy] = useState(false);

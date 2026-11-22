@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import ReactECharts from 'echarts-for-react';
@@ -194,37 +194,172 @@ function Body({ artifact }: { artifact: AiArtifactDetail }) {
   return <ChartBody content={artifact.content} />;
 }
 
-function ShareChart({ id }: { id: string }) {
+function ArtifactSharing({ id, scope }: { id: string; scope: string }) {
   const { t } = useTranslation();
   const [login, setLogin] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState('');
-  async function update(active: boolean) {
-    if (busy || !login.trim()) return;
+  const [open, setOpen] = React.useState(false);
+  const recipients = useQuery({
+    queryKey: ['ai-artifact-recipients', scope, id],
+    queryFn: ({ signal }) => aiArtifactService.recipients(id, signal),
+    enabled: open,
+    retry: false,
+  });
+  async function update(active: boolean, recipient: string) {
+    if (busy || !recipient) return;
     setBusy(true);
     setMessage('');
     try {
-      const result = await aiArtifactService.share(id, login.trim(), active);
-      setMessage(t(result.active ? 'aiArtifact.granted' : 'aiArtifact.revoked', { login: login.trim() }));
+      const result = await aiArtifactService.share(id, recipient, active);
+      setMessage(t(result.active ? 'aiArtifact.granted' : 'aiArtifact.revoked', { login: recipient }));
+      if (active) setLogin('');
+      await recipients.refetch();
     } catch {
       setMessage(t('aiArtifact.shareError'));
     } finally {
       setBusy(false);
     }
   }
-  return <details className="rounded-xl border border-border bg-card p-4">
-    <summary className="cursor-pointer font-semibold">{t('aiArtifact.shareTitle')}</summary>
-    <p className="my-3 text-sm text-muted-foreground">{t('aiArtifact.shareHint')}</p>
-    <div className="flex flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-sm">{t('aiArtifact.recipient')}
-        <input className="h-10 rounded-md border border-input bg-background px-3" value={login} disabled={busy}
-          onChange={event => { setLogin(event.target.value); setMessage(''); }} />
-      </label>
-      <Button disabled={busy || !login.trim()} onClick={() => update(true)}>{t('aiArtifact.grant')}</Button>
-      <Button variant="outline" disabled={busy || !login.trim()} onClick={() => update(false)}>{t('aiArtifact.revoke')}</Button>
-    </div>
-    <p role="status" className="mt-2 text-sm">{message}</p>
-  </details>;
+  return (
+    <details onToggle={event => setOpen(event.currentTarget.open)} className="rounded-xl border border-border bg-card p-4">
+      <summary className="cursor-pointer font-semibold">{t('aiArtifact.shareTitle')}</summary>
+      <p className="my-3 text-sm text-muted-foreground">{t('aiArtifact.shareHint')}</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          {t('aiArtifact.recipient')}
+          <input
+            className="h-10 rounded-md border border-input bg-background px-3"
+            value={login}
+            disabled={busy}
+            onChange={event => {
+              setLogin(event.target.value);
+              setMessage('');
+            }}
+          />
+        </label>
+        <Button disabled={busy || !login.trim()} onClick={() => update(true, login.trim())}>
+          {t('aiArtifact.grant')}
+        </Button>
+      </div>
+      <p role="status" className="mt-2 text-sm">
+        {message}
+      </p>
+      {open && (
+        <section className="mt-4 border-t border-border pt-3" aria-label={t('aiArtifact.recipients')}>
+          <h2 className="mb-2 text-sm font-medium">{t('aiArtifact.recipients')}</h2>
+          {recipients.isFetching ? (
+            <p role="status">{t('aiArtifact.loading')}</p>
+          ) : recipients.isError ? (
+            <p role="alert">
+              {t('aiArtifact.recipientsError')}{' '}
+              <Button variant="outline" onClick={() => recipients.refetch()}>
+                {t('aiArtifact.retryHistory')}
+              </Button>
+            </p>
+          ) : recipients.data?.length ? (
+            <ul>
+              {recipients.data.map(person => (
+                <li key={person.login} className="flex items-center justify-between gap-3 py-1">
+                  <span className="break-all text-sm">{person.login}</span>
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    aria-label={t('aiArtifact.revokePerson', { login: person.login })}
+                    onClick={() => update(false, person.login)}
+                  >
+                    {t('aiArtifact.revoke')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('aiArtifact.noRecipients')}</p>
+          )}
+        </section>
+      )}
+    </details>
+  );
+}
+
+function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string }) {
+  const { t } = useTranslation();
+  const [params, setParams] = useSearchParams();
+  const value = params.get('revision');
+  const wanted = Number(value);
+  const isPast = value !== null && wanted !== latest.revision;
+  const valid = /^[1-9]\d*$/.test(value ?? '') && Number.isSafeInteger(wanted) && wanted < latest.revision;
+  const history = useQuery({
+    queryKey: ['ai-artifact-history', scope, latest.id, latest.revision],
+    queryFn: ({ signal }) => aiArtifactService.revisions(latest.id, signal),
+    enabled: latest.revision > 1,
+    retry: false,
+  });
+  const previous = useQuery({
+    queryKey: ['ai-artifact-version', scope, latest.id, value],
+    queryFn: ({ signal }) => aiArtifactService.revision(latest.id, wanted, signal),
+    enabled: isPast && valid,
+    retry: false,
+  });
+  const select = (revision: string) => {
+    const next = new URLSearchParams(params);
+    if (revision === String(latest.revision)) next.delete('revision');
+    else next.set('revision', revision);
+    setParams(next);
+  };
+  const shown = isPast ? (valid && !previous.isError && !previous.isFetching ? previous.data : undefined) : latest;
+  return (
+    <>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-semibold">{shown?.title ?? t('aiArtifact.history')}</h1>
+          {shown && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(isPast ? 'aiArtifact.pastRevision' : 'aiArtifact.latestRevision', { revision: shown.revision })}
+            </p>
+          )}
+        </div>
+        {!!history.data?.length && (
+          <label className="flex flex-col gap-1 text-sm">
+            {t('aiArtifact.history')}
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3"
+              value={value ?? latest.revision}
+              onChange={event => select(event.target.value)}
+            >
+              {isPast && !history.data.some(item => item.revision === wanted) && (
+                <option value={value ?? ''}>{t('aiArtifact.unavailableRevision')}</option>
+              )}
+              {history.data.map(item => (
+                <option key={item.revision} value={item.revision}>
+                  {t(item.revision === latest.revision ? 'aiArtifact.latestRevision' : 'aiArtifact.pastRevision', {
+                    revision: item.revision,
+                  })}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </header>
+      {history.isError && (
+        <p role="alert">
+          {t('aiArtifact.historyError')}{' '}
+          <Button variant="outline" onClick={() => history.refetch()}>
+            {t('aiArtifact.retryHistory')}
+          </Button>
+        </p>
+      )}
+      {isPast && (
+        <Button className="self-start" variant="outline" onClick={() => select(String(latest.revision))}>
+          {t('aiArtifact.returnLatest')}
+        </Button>
+      )}
+      {isPast && valid && previous.isFetching && <p role="status">{t('aiArtifact.loading')}</p>}
+      {isPast && (!valid || previous.isError) && <p role="alert">{t('aiArtifact.unavailableRevision')}</p>}
+      {!isPast && <ArtifactSharing id={latest.id} scope={scope} />}
+      {shown && <Body artifact={shown} />}
+    </>
+  );
 }
 
 export default function AiArtifactView() {
@@ -254,17 +389,21 @@ export default function AiArtifactView() {
           {t('aiArtifact.error')}
         </p>
       )}
-      {!query.isFetching && !query.isError && query.data && (
-        <>
-          <h1 className="break-words text-2xl font-semibold">{query.data.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t('aiArtifact.revision')} {query.data.revision}
-          </p>
-          {query.data.role === 'owner' && <ShareChart key={query.data.id} id={query.data.id} />}
-          {query.data.role === 'recipient' && <p>{t('aiArtifact.readOnly')}</p>}
-          <Body artifact={query.data} />
-        </>
-      )}
+      {!query.isFetching &&
+        !query.isError &&
+        query.data &&
+        (query.data.role === 'owner' && scope ? (
+          <OwnerView key={query.data.id} latest={query.data} scope={scope} />
+        ) : (
+          <>
+            <h1 className="break-words text-2xl font-semibold">{query.data.title}</h1>
+            <p className="text-sm text-muted-foreground">
+              {t('aiArtifact.revision')} {query.data.revision}
+            </p>
+            {query.data.role === 'recipient' && <p>{t('aiArtifact.readOnly')}</p>}
+            <Body artifact={query.data} />
+          </>
+        ))}
     </main>
   );
 }

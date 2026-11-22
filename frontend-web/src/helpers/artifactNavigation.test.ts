@@ -32,6 +32,11 @@ describe('artifact list navigation', () => {
     const back = artifactListNavigation(viewer).listHref;
     expect(back).toBe('/dashboard?artifactQuery=brief&artifactKind=ai&artifactDisplay=grid');
   });
+  it('returns a recipient to their shared search after opening an artifact', () => {
+    const hub = artifactListNavigation({ pathname: '/dashboard', search: '?artifactQuery=Sales&artifactScope=shared' });
+    const detail = new URL(hub.link('/ai-artifacts/42'), 'https://vm.test');
+    expect(artifactListNavigation(detail).listHref).toBe('/dashboard?artifactQuery=Sales&artifactScope=shared');
+  });
   it.each([
     'https://outside.test',
     '//outside.test',
