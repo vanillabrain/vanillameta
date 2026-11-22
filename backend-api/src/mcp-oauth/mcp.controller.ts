@@ -197,7 +197,7 @@ export class McpController {
         'vm_update_artifact',
         {
           description:
-            'Update one of your own artifacts. expectedRevision must equal the current revision; a mismatch is rejected.',
+            'Update one of your own artifacts. Supply its current expectedRevision. Returns the new revision and the same browser URL.',
           inputSchema: z
             .object({
               id: z.string().uuid(),
@@ -209,7 +209,7 @@ export class McpController {
           annotations: { readOnlyHint: false, destructiveHint: false },
         },
         async input =>
-          safeWrite(async () => this.artifacts.update({ actorId: principal.actorId }, input)),
+          safeWrite(async () => withUrl(await this.artifacts.update({ actorId: principal.actorId }, input))),
       );
       server.registerTool(
         'vm_delete_artifact',

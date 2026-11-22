@@ -166,7 +166,11 @@ for pair in "html:$HTML_ID" "document:$DOC_ID" "sheet:$SHEET_ID" "chart:$CHART_I
 done
 
 UPDATED=$(call vm_update_artifact "{\"id\":\"$DOC_ID\",\"expectedRevision\":1,\"content\":{\"markdown\":\"# Quarterly Note\n\nRevenue grew 15%.\"}}" | payload_of)
-echo "$UPDATED" | grep -q '"revision":2' && pass "수정(document revision 2)" || fail "수정"
+if [ "$(echo "$UPDATED" | json 'd["revision"]')" = 2 ] && [ "$(echo "$UPDATED" | json 'd.get("url", "")')" = "$WEB/ai-artifacts/$DOC_ID" ]; then
+  pass "수정(document revision 2, 동일 링크)"
+else
+  fail "수정 응답 버전·링크"
+fi
 DELETED=$(call vm_delete_artifact "{\"id\":\"$EXTRA_ID\",\"expectedRevision\":1}" | payload_of)
 echo "$DELETED" | grep -q '"deleted":true' && pass "삭제" || fail "삭제"
 GONE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $JWT" "$API/ai-artifacts/$EXTRA_ID")
