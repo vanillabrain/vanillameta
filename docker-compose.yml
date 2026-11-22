@@ -2,7 +2,9 @@ services:
   # ── 기본 스택: docker compose up ────────────────────────────────
   # PostgreSQL 17 메타데이터와 샘플 대시보드를 함께 준비한다.
   backend:
-    build: ./backend-api
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile.prod
     environment:
       NODE_ENV: dev
       DB_HOST: postgres
@@ -17,17 +19,17 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-jwt-secret}
       URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev-only-url-secret}
       CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:-dev-only-config-secret}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${VM_WEB_PORT:-3000}}
       # 원격 MCP: 기본으로 켜져 있다. AI 호스트가 http://localhost:4000/v1/mcp 에 OAuth 로 연결한다.
       # 끄려면 MCP_OAUTH_CLIENTS_JSON= (빈 값). 설정 방법은 README_DOCKER.md.
-      MCP_PUBLIC_API_URL: ${MCP_PUBLIC_API_URL:-http://localhost:4000/v1}
-      MCP_PUBLIC_WEB_URL: ${MCP_PUBLIC_WEB_URL:-http://localhost:3000/}
-      MCP_OAUTH_CLIENTS_JSON: '${MCP_OAUTH_CLIENTS_JSON-[{"id":"claude-code","name":"Claude Code","redirectUris":["http://localhost:53683/callback","http://127.0.0.1:53683/callback"],"scopes":["sources:read","documents:read","artifacts:read","artifacts:write"]}]}'
+      MCP_PUBLIC_API_URL: ${MCP_PUBLIC_API_URL:-http://localhost:${VM_API_PORT:-4000}/v1}
+      MCP_PUBLIC_WEB_URL: ${MCP_PUBLIC_WEB_URL:-http://localhost:${VM_WEB_PORT:-3000}/}
+      MCP_OAUTH_CLIENTS_JSON: '${MCP_OAUTH_CLIENTS_JSON-[{"id":"claude-code","name":"Claude Code","redirectUris":["http://localhost:53683/callback","http://127.0.0.1:53683/callback"],"scopes":["artifacts:read","artifacts:write"]},{"id":"codex","name":"Codex","redirectUris":["http://localhost:53684/callback","http://127.0.0.1:53684/callback","http://127.0.0.1:53684/callback/6m2PpwaEkjMj"],"scopes":["artifacts:read","artifacts:write"]}]}'
       # REDIS_URL: redis://redis:6379   # --profile cache 사용 시
     # 부팅 시 시드(멱등) 후 앱 기동
     command: sh -c "mkdir -p /data/uploads && node dist/src/database/run-seed.js && node dist/src/main.js"
     ports:
-      - "4000:4000"
+      - "127.0.0.1:${VM_API_PORT:-4000}:4000"
     volumes:
       - vanillameta-data:/data
     depends_on:
@@ -37,26 +39,28 @@ services:
   frontend:
     build:
       context: ./frontend-web
+      dockerfile: Dockerfile.prod
       args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:4000/v1}
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-${MCP_PUBLIC_API_URL:-http://localhost:${VM_API_PORT:-4000}/v1}}
+        REACT_APP_MODE: local
+    environment:
+      API_UPSTREAM: backend:4000
     ports:
-      - "3000:80"
+      - "127.0.0.1:${VM_WEB_PORT:-3000}:80"
     depends_on:
       - backend
 
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: vanillameta
-      POSTGRES_USER: vanillameta
-      POSTGRES_PASSWORD: vanillameta
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME:-vanillameta}
+      POSTGRES_USER: ${DB_USERNAME:-vanillameta}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vanillameta}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        ["CMD-SHELL", "pg_isready -U vanillameta -d vanillameta -h 127.0.0.1"]
+        ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -66,7 +70,7 @@ services:
     profiles: ["cache"]
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
 volumes:
   vanillameta-data:

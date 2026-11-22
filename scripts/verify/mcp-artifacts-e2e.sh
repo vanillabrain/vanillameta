@@ -8,8 +8,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 PROJECT=${VM_PROJECT:-vm-artifacts-verify-$$}
-WEB=${VM_WEB_URL:-http://localhost:3000}
-API=${VM_API_URL:-http://localhost:4000/v1}
+WEB=${VM_WEB_URL:-http://localhost:${VM_WEB_PORT:-3000}}
+API=${VM_API_URL:-http://localhost:${VM_API_PORT:-4000}/v1}
 KEEP=${KEEP:-0}
 EVIDENCE=${VM_EVIDENCE_DIR:-$(pwd)/.verify/mcp-artifacts}
 
@@ -100,21 +100,14 @@ PY
 )
 REDIRECT='http://localhost:53683/callback'
 AUTH_URL="$API/mcp-oauth/authorize?response_type=code&client_id=claude-code&redirect_uri=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' "$REDIRECT")&code_challenge=$CHALLENGE&code_challenge_method=S256&state=$STATE&scope=artifacts%3Aread%20artifacts%3Awrite&resource=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' "$API/mcp")"
-curl -sS -c "$JAR" -b "$JAR" -D "$EVIDENCE/authorize.headers" -o /dev/null "$AUTH_URL"
-LOCATION=$(python3 - "$EVIDENCE/authorize.headers" <<'PY'
-import sys
-for line in open(sys.argv[1]):
-    if line.lower().startswith('location:'):
-        print(line.split(':', 1)[1].strip()); break
-PY
-)
+LOCATION=$(curl -sS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' "$AUTH_URL")
 TICKET=${LOCATION##*/}
 [ -n "$TICKET" ] && pass "authorize → 승인 티켓" || { fail "authorize"; exit 1; }
 
 REVIEW=$(curl -sS -b "$JAR" -H "Authorization: Bearer $JWT" -H "Origin: $WEB" \
   "$API/ai-connections/requests/$TICKET")
 REVIEW_TOKEN=$(echo "$REVIEW" | json 'd["reviewToken"]')
-printf '%s' "$REVIEW" >"$EVIDENCE/consent-review.json"
+printf '%s' "$REVIEW" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps({"requestedScopes":d["requestedScopes"]}))' >"$EVIDENCE/consent-review.json"
 [ -n "$REVIEW_TOKEN" ] && pass "승인 화면 요청 조회" || { fail "승인 요청 조회"; exit 1; }
 SCOPES=$(echo "$REVIEW" | json '",".join(d["requestedScopes"])')
 
@@ -125,7 +118,7 @@ DECISION=$(curl -sS -b "$JAR" -H "Authorization: Bearer $JWT" -H "Origin: $WEB" 
 CODE=$(echo "$DECISION" | python3 -c 'import sys,json,urllib.parse as u;d=json.load(sys.stdin);print(u.parse_qs(u.urlparse(d["redirectUrl"]).query)["code"][0])')
 [ -n "$CODE" ] && pass "연결 승인 → 인가 코드" || { fail "승인"; exit 1; }
 
-TOKEN_JSON=$(curl -sS -H 'Host: localhost:4000' \
+TOKEN_JSON=$(curl -sS \
   --data-urlencode 'grant_type=authorization_code' \
   --data-urlencode "code=$CODE" \
   --data-urlencode "redirect_uri=$REDIRECT" \
