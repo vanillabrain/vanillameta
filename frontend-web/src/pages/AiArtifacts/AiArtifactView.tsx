@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import ReactECharts from 'echarts-for-react';
@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { aiArtifactService, AiArtifactDetail } from '@/api/aiArtifactService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 
 const htmlSchema = z.object({ html: z.string() });
 const documentSchema = z.object({ markdown: z.string() });
@@ -130,17 +131,58 @@ function SheetBody({ content }: { content: Record<string, unknown> }) {
 }
 
 function ChartBody({ content }: { content: Record<string, unknown> }) {
+  const { t } = useTranslation();
   const { chartType, labels, series } = chartSchema.parse(content);
   const option = {
     tooltip: { trigger: 'axis' },
     legend: { data: series.map(item => item.name) },
     xAxis: { type: 'category', data: labels },
     yAxis: { type: 'value' },
-    series: series.map(item => ({ name: item.name, type: chartType, data: item.data })),
+    series: series.map(item => ({
+      name: item.name,
+      type: chartType,
+      data: item.data,
+      ...(chartType === 'bar' ? { label: { show: true, position: 'top' } } : {}),
+    })),
   };
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <ReactECharts option={option} style={{ height: 420 }} notMerge={true} />
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full border-collapse text-sm" aria-label={t('aiArtifact.chartValues')}>
+          <caption className="pb-2 text-left font-medium">{t('aiArtifact.chartValues')}</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="border-b border-border px-4 py-2 text-left font-semibold">
+                {t('aiArtifact.category')}
+              </th>
+              {series.map((item, seriesIndex) => (
+                <th
+                  key={item.name + '-' + seriesIndex}
+                  scope="col"
+                  className="border-b border-border px-4 py-2 text-left font-semibold"
+                >
+                  {item.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {labels.map((label, rowIndex) => (
+              <tr key={`${label}-${rowIndex}`}>
+                <th scope="row" className="border-b border-border px-4 py-2 text-left font-normal">
+                  {label}
+                </th>
+                {series.map((item, seriesIndex) => (
+                  <td key={item.name + '-' + seriesIndex} className="border-b border-border px-4 py-2">
+                    {String(item.data[rowIndex] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -155,6 +197,7 @@ function Body({ artifact }: { artifact: AiArtifactDetail }) {
 export default function AiArtifactView() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const { listHref } = artifactListNavigation(useLocation());
   const scope = personalLibrarySessionScope();
   const query = useQuery({
     queryKey: ['ai-artifact', scope, id],
@@ -170,7 +213,7 @@ export default function AiArtifactView() {
   return (
     <main className="mx-auto flex w-full min-w-0 max-w-[1280px] flex-col gap-6 p-4 sm:p-8 lg:p-12">
       <Button asChild variant="ghost" className="h-10 self-start">
-        <Link to="/dashboard">{t('aiArtifact.back')}</Link>
+        <Link to={listHref}>{t('aiArtifact.back')}</Link>
       </Button>
       {query.isFetching && <p role="status">{t('aiArtifact.loading')}</p>}
       {query.isError && (

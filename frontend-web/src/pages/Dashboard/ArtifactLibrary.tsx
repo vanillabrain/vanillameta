@@ -7,6 +7,7 @@ import BoardItem from '@/components/BoardItem';
 import { ReportLibraryItem } from '../Reports/reportSharingApi';
 import { DocumentSummary } from '@/api/documentService';
 import { FileArtifactSummary } from '@/api/fileArtifactService';
+import type { AiArtifactSummary } from '@/api/aiArtifactService';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -30,11 +31,18 @@ type Row =
   | { kind: 'delivery'; item: ReceivedDashboard & { id: string; updatedAt: string } }
   | { kind: 'report'; item: ReportLibraryItem }
   | { kind: 'google'; item: DocumentSummary }
-  | { kind: 'file'; item: FileArtifactSummary };
-type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file';
+  | { kind: 'file'; item: FileArtifactSummary }
+  | { kind: 'ai'; item: AiArtifactSummary };
+type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file' | 'ai';
 
-const iconFor = (row: Row) =>
-  row.kind === 'delivery'
+const iconFor = (row: Row) => {
+  if (row.kind === 'ai') {
+    if (row.item.kind === 'html') return FileText;
+    if (row.item.kind === 'document') return FileType2;
+    if (row.item.kind === 'sheet') return Sheet;
+    return LayoutDashboard;
+  }
+  return row.kind === 'delivery'
     ? LayoutDashboard
     : row.kind === 'report'
     ? FileText
@@ -47,6 +55,7 @@ const iconFor = (row: Row) =>
       ? File
       : Presentation
     : Sheet;
+};
 
 /** UC049 and unified artifacts: search only the existing server-authorized source results. */
 export default function ArtifactLibrary({
@@ -54,6 +63,7 @@ export default function ArtifactLibrary({
   reports = [],
   documents = [],
   files = [],
+  aiArtifacts = [],
   deliveries = [],
   scope = 'mine',
   reportBoundary,
@@ -76,6 +86,7 @@ export default function ArtifactLibrary({
   reports?: ReportLibraryItem[];
   documents?: DocumentSummary[];
   files?: FileArtifactSummary[];
+  aiArtifacts?: AiArtifactSummary[];
   deliveries?: ReceivedDashboard[];
   scope?: 'mine' | 'shared';
   reportBoundary?: React.RefObject<HTMLDivElement>;
@@ -101,7 +112,7 @@ export default function ArtifactLibrary({
   const searchRef = useRef<HTMLInputElement>(null);
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
   const kindParam = params.get('artifactKind');
-  const kinds: Kind[] = ['all', 'analysis', 'dashboard', 'report', 'google', 'file'];
+  const kinds: Kind[] = ['all', 'analysis', 'dashboard', 'report', 'google', 'file', 'ai'];
   const kind = kinds.includes(kindParam as Kind) ? (kindParam as Kind) : 'all';
   const sort = params.get('artifactSort') === 'title' ? 'title' : 'recent';
   const display = params.get('artifactDisplay') === 'grid' ? 'grid' : 'list';
@@ -129,6 +140,7 @@ export default function ArtifactLibrary({
     ...(scope === 'shared' ? [] : view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
+    ...(scope === 'shared' ? [] : view === 'active' ? aiArtifacts.map(item => ({ kind: 'ai' as const, item })) : []),
   ];
   const results = useMemo(() => {
     const text = normalized(query);
@@ -136,7 +148,8 @@ export default function ArtifactLibrary({
       .filter(row => normalized(row.item.title ?? '').includes(text))
       .filter(row => {
         if (kind === 'all') return true;
-        if (row.kind === 'report' || row.kind === 'google' || row.kind === 'file') return kind === row.kind;
+        if (row.kind === 'report' || row.kind === 'google' || row.kind === 'file' || row.kind === 'ai')
+          return kind === row.kind;
         if (row.kind === 'delivery') return kind === 'analysis' || kind === 'dashboard';
         return kind === 'analysis' ? !!row.item.analysisDefinition : kind === 'dashboard' && !row.item.analysisDefinition;
       })
@@ -145,7 +158,7 @@ export default function ArtifactLibrary({
           (a.item.title ?? '').localeCompare(b.item.title ?? '', 'ko') || String(a.item.id).localeCompare(String(b.item.id));
         return sort === 'title' ? byTitle : time(b.item.updatedAt) - time(a.item.updatedAt) || byTitle;
       });
-  }, [items, reports, documents, files, deliveries, loading, listError, view, query, kind, sort, scope]);
+  }, [items, reports, documents, files, aiArtifacts, deliveries, loading, listError, view, query, kind, sort, scope]);
   const reset = () => {
     update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
     searchRef.current?.focus();
@@ -243,6 +256,7 @@ export default function ArtifactLibrary({
           <option value="report">{t('artifact.report')}</option>
           <option value="google">{t('artifact.google')}</option>
           <option value="file">{t('artifact.file')}</option>
+          <option value="ai">{t('artifact.ai')}</option>
         </TextField>
         <TextField
           select
@@ -354,8 +368,19 @@ function ArtifactRow({
       ? `/reports/${row.item.id}/read`
       : row.kind === 'google'
       ? `/documents/${row.item.id}`
+      : row.kind === 'ai'
+      ? `/ai-artifacts/${row.item.id}`
       : `/artifacts/files/${row.item.id}`;
   const file = row.kind === 'file' ? row.item : undefined;
+  const aiKind =
+    row.kind === 'ai'
+      ? {
+          html: 'artifact.html',
+          document: 'artifact.aiDocument',
+          sheet: 'artifact.aiSheet',
+          chart: 'artifact.aiChart',
+        }[row.item.kind]
+      : undefined;
   const detail =
     row.kind === 'delivery'
       ? t('artifact.versions', { version: row.item.version })
@@ -365,6 +390,8 @@ function ArtifactRow({
       ? t('artifact.versions', { version: row.item.currentVersion })
       : file
       ? `${t(`artifact.${file.kind}`)} · ${t('artifact.versions', { version: file.headVersion })}`
+      : row.kind === 'ai' && aiKind
+      ? `${t(aiKind)} · ${t('artifact.versions', { version: row.item.revision })}`
       : '';
   const updatedAt = row.kind === 'google' ? row.item.updatedAt : row.item.updatedAt;
   const ownership =
@@ -376,6 +403,8 @@ function ArtifactRow({
         : t('artifact.received')
       : row.kind === 'file'
       ? t(file.shareActive ? 'artifact.shared' : 'artifact.private')
+      : row.kind === 'ai'
+      ? t('artifact.owned')
       : '';
   return (
     <li

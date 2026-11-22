@@ -775,6 +775,30 @@ it('loads the archived URL scope and retains search and grid while switching to 
   expect(api.get.mock.calls.some(([url, params]) => url === '/dashboard/library' && params.view === 'active')).toBe(true);
 });
 
+it('loads owner AI artifacts into the searchable hub and reopens them with the current list context', async () => {
+  const aiArtifact = {
+    id: '33333333-3333-4333-8333-333333333333',
+    kind: 'chart',
+    title: 'Quarterly revenue',
+    revision: 3,
+    updatedAt: '2026-11-22T00:00:00.000Z',
+  };
+  api.get.mockImplementation(async (path, params) => {
+    if (path === '/ai-artifacts') return { data: { items: [aiArtifact] } };
+    if (path === '/dashboard/library') return library(params.view);
+    throw new Error('unexpected request');
+  });
+  show('/dashboard?artifactQuery=quarterly&artifactKind=ai&artifactDisplay=grid');
+  const link = await screen.findByRole('link', { name: 'Quarterly revenue' });
+  expect(link.getAttribute('href')).toMatch(/^\/ai-artifacts\/33333333-3333-4333-8333-333333333333\?artifactReturn=/);
+  const params = new URLSearchParams(link.getAttribute('href')?.split('?')[1]);
+  expect(JSON.parse(params.get('artifactReturn') ?? '{}')).toMatchObject({
+    query: 'quarterly',
+    kind: 'ai',
+    display: 'grid',
+  });
+});
+
 it('keeps the active sample preparation through a library reload', async () => {
   starter.enabled = true;
   const sample = deferred();

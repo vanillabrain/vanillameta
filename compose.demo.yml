@@ -1,0 +1,9 @@
+services:
+  frontend:
+    ports: !override ["127.0.0.1:3000:80"]
+  backend:
+    ports: !override ["127.0.0.1:4000:4000"]
+    environment:
+      MCP_OAUTH_CLIENTS_JSON: '[{"id":"claude-code","name":"Claude Code","redirectUris":["http://localhost:53683/callback","http://127.0.0.1:53683/callback"],"scopes":["artifacts:read","artifacts:write"]},{"id":"codex","name":"Codex","redirectUris":["http://localhost:53684/callback","http://127.0.0.1:53684/callback"],"scopes":["artifacts:read","artifacts:write"]}]'
+  postgres:
+    ports: !override []

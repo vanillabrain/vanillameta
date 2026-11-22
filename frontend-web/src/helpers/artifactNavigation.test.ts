@@ -23,6 +23,15 @@ describe('artifact list navigation', () => {
     expect(list.listHref).not.toContain('aiSourceId');
     expect(studio.searchParams.get('mode')).toBe('editor');
   });
+  it('carries the AI artifact type through the viewer and back to the filtered hub', () => {
+    const hub = artifactListNavigation({
+      pathname: '/dashboard',
+      search: '?artifactQuery=brief&artifactKind=ai&artifactDisplay=grid',
+    });
+    const viewer = new URL(hub.link('/ai-artifacts/33333333-3333-4333-8333-333333333333'), 'https://vm.test');
+    const back = artifactListNavigation(viewer).listHref;
+    expect(back).toBe('/dashboard?artifactQuery=brief&artifactKind=ai&artifactDisplay=grid');
+  });
   it.each([
     'https://outside.test',
     '//outside.test',

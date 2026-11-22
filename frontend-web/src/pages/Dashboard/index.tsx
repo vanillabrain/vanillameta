@@ -4,6 +4,7 @@ import ArtifactLibrary from './ArtifactLibrary';
 import FileUploadDialog from '../Artifacts/FileUploadDialog';
 import { documentService } from '@/api/documentService';
 import { fileArtifactService } from '@/api/fileArtifactService';
+import { aiArtifactService } from '@/api/aiArtifactService';
 import { fetchReceivedDashboards, ReceivedDashboard } from '@/api/deliveryService';
 import { useProtectedReport } from '../Reports/useProtectedReport';
 import { reportSharingApi, ReportLibraryItem } from '../Reports/reportSharingApi';
@@ -249,15 +250,26 @@ function Dashboard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const supplementaryLoading = view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching);
+  const aiArtifactsQuery = useQuery({
+    queryKey: ['artifact-hub', 'ai-artifacts', authScope],
+    queryFn: ({ signal }) => aiArtifactService.list(signal),
+    enabled: authScope !== null && hubScope === 'mine' && view === 'active',
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const supplementaryLoading =
+    view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching || aiArtifactsQuery.isFetching);
   const supplementaryError =
-    view === 'active' && (documentsQuery.isError || filesQuery.isError) ? t('artifact.supplementaryError') : '';
+    view === 'active' && (documentsQuery.isError || filesQuery.isError || aiArtifactsQuery.isError)
+      ? t('artifact.supplementaryError')
+      : '';
   const reloadArtifacts = () => {
     void reloadLibrary();
     reportLibrary.reload();
     if (view === 'active') {
       void documentsQuery.refetch();
       void filesQuery.refetch();
+      void aiArtifactsQuery.refetch();
     }
   };
 
@@ -412,6 +424,9 @@ function Dashboard() {
                     : []
                 }
                 files={hubScope === 'mine' && view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
+                aiArtifacts={
+                  hubScope === 'mine' && view === 'active' && !aiArtifactsQuery.isError ? aiArtifactsQuery.data ?? [] : []
+                }
                 supplementaryLoading={supplementaryLoading}
                 supplementaryError={supplementaryError}
                 onDelete={hubScope === 'shared' ? () => undefined : handleDeleteSelect}

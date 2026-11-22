@@ -1,0 +1,88 @@
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import AiArtifactView from './AiArtifactView';
+import { aiArtifactService } from '@/api/aiArtifactService';
+
+vi.mock('@/api/aiArtifactService', () => ({
+  aiArtifactService: { detail: vi.fn() },
+}));
+vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: () => 'session-a' }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('echarts-for-react', () => ({
+  default: ({ option }: { option: { series: unknown } }) => (
+    <div data-testid="chart-option">{JSON.stringify(option.series)}</div>
+  ),
+}));
+
+const id = '33333333-3333-4333-8333-333333333333';
+const context = { version: 1, query: 'alpha', kind: 'ai', sort: 'title', display: 'grid', view: 'active' };
+function show(path: string) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/ai-artifacts/:id" element={<AiArtifactView />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+beforeEach(() => vi.resetAllMocks());
+afterEach(cleanup);
+
+it('returns from the viewer to the same filtered hub', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue({
+    id,
+    kind: 'document',
+    title: 'Alpha briefing',
+    revision: 2,
+    updatedAt: '2026-11-22T00:00:00.000Z',
+    content: { markdown: 'Readable body' },
+  });
+  show('/ai-artifacts/' + id + '?artifactReturn=' + encodeURIComponent(JSON.stringify(context)));
+  await screen.findByRole('heading', { name: 'Alpha briefing' });
+  const target = new URL(screen.getByRole('link', { name: 'aiArtifact.back' }).getAttribute('href') ?? '', 'http://vm');
+  expect(target.pathname).toBe('/dashboard');
+  expect(target.searchParams.get('artifactQuery')).toBe('alpha');
+  expect(target.searchParams.get('artifactKind')).toBe('ai');
+  expect(target.searchParams.get('artifactSort')).toBe('title');
+  expect(target.searchParams.get('artifactDisplay')).toBe('grid');
+});
+
+it('shows real chart values as visible rows and labels bars without replacing supplied series names', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue({
+    id,
+    kind: 'chart',
+    title: 'Revenue by month',
+    revision: 3,
+    updatedAt: '2026-11-22T00:00:00.000Z',
+    content: {
+      chartType: 'bar',
+      labels: ['Jan', 'Feb'],
+      series: [
+        { name: 'Net revenue', data: [120, 90] },
+        { name: 'Refunds', data: [15, 8] },
+      ],
+    },
+  });
+  show('/ai-artifacts/' + id);
+  await screen.findByRole('heading', { name: 'Revenue by month' });
+  const table = screen.getByRole('table', { name: 'aiArtifact.chartValues' }) as HTMLTableElement;
+  expect(within(table).getByRole('columnheader', { name: 'Net revenue' })).toBeTruthy();
+  expect(within(table).getByRole('rowheader', { name: 'Jan' })).toBeTruthy();
+  expect(within(table).getByRole('cell', { name: '120' })).toBeTruthy();
+  expect(within(table).getByRole('cell', { name: '15' })).toBeTruthy();
+  const oracle = [
+    ['Jan', '120', '15'],
+    ['Feb', '90', '8'],
+  ];
+  expect(Array.from(table.tBodies[0].rows, row => Array.from(row.cells, cell => cell.textContent))).toEqual(oracle);
+  const series = screen.getByTestId('chart-option').textContent ?? '';
+  expect(series).toContain('"name":"Net revenue"');
+  expect(series).toContain('"show":true');
+  expect(series).toContain('"position":"top"');
+});

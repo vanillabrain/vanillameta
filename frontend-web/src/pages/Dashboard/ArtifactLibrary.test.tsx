@@ -218,6 +218,40 @@ it('merges Google documents and file artifacts into the same search, filters, an
   expect(screen.getByRole('status').textContent).toBe('전체 5개 중 1개');
 });
 
+it('reopens a matching owner AI artifact with the current hub search and keeps it out of archive views', () => {
+  const aiArtifact = {
+    id: '33333333-3333-4333-8333-333333333333',
+    kind: 'document' as const,
+    title: 'Alpha briefing',
+    revision: 4,
+    updatedAt: '2026-10-06T00:00:00.000Z',
+  };
+  const view = render(
+    <MemoryRouter
+      initialEntries={['/dashboard?artifactQuery=alpha&artifactKind=ai&artifactDisplay=grid&artifactSort=title']}
+    >
+      <ArtifactLibrary items={items} aiArtifacts={[aiArtifact]} onDelete={vi.fn()} />
+    </MemoryRouter>,
+  );
+  const link = screen.getByRole('link', { name: 'Alpha briefing' });
+  expect(link.getAttribute('href')).toMatch(/^\/ai-artifacts\/33333333-3333-4333-8333-333333333333\?/);
+  expect(screen.getAllByText(/AI 문서 · 버전 4/)).toHaveLength(2);
+  expect(screen.getAllByText(/내 문서/)).toHaveLength(2);
+  const returned = new URLSearchParams(link.getAttribute('href')?.split('?')[1]);
+  expect(JSON.parse(returned.get('artifactReturn') ?? '{}')).toMatchObject({
+    query: 'alpha',
+    kind: 'ai',
+    display: 'grid',
+    sort: 'title',
+  });
+  view.rerender(
+    <MemoryRouter initialEntries={['/dashboard?artifactKind=ai']}>
+      <ArtifactLibrary items={items} aiArtifacts={[aiArtifact]} view="archived" onDelete={vi.fn()} />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByRole('link', { name: 'Alpha briefing' })).toBeNull();
+});
+
 it('shows received reports and deliveries as read-only shared rows', () => {
   const onDelete = vi.fn();
   render(
