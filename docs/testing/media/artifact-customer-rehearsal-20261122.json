@@ -1,0 +1,343 @@
+{
+  "productCommit": "435cce0f",
+  "database": "PostgreSQL 17",
+  "journey": {
+    "durationSeconds": 67.531,
+    "scopes": [
+      "내 아티팩트 읽기",
+      "내 아티팩트 만들기·수정·삭제"
+    ],
+    "id": "f6821151-ed6a-4d71-8d81-617f8dd03682",
+    "v1": [
+      [
+        "구분",
+        "매출 (단위: 만 원) - 발표용 합성 데이터"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "80"
+      ]
+    ],
+    "v2": [
+      [
+        "구분",
+        "매출 (단위: 만 원) - 발표용 합성 데이터"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "100"
+      ]
+    ],
+    "sameConversation": true,
+    "ownerReopen": true,
+    "privateBefore": true,
+    "recipientReadOnly": true,
+    "revoked": true,
+    "chapters": [
+      {
+        "name": "운영 도움말",
+        "ms": 0
+      },
+      {
+        "name": "OAuth 승인",
+        "ms": 2818
+      },
+      {
+        "name": "Claude 첫 요청",
+        "ms": 6549
+      },
+      {
+        "name": "Claude 같은 대화의 수정",
+        "ms": 31939
+      },
+      {
+        "name": "내 아티팩트에서 재열기",
+        "ms": 53926
+      },
+      {
+        "name": "공유 전 비공개",
+        "ms": 55680
+      },
+      {
+        "name": "소유자가 읽기 권한 공유",
+        "ms": 57342
+      },
+      {
+        "name": "수신자 허브와 읽기 전용 화면",
+        "ms": 58782
+      },
+      {
+        "name": "소유자 회수와 수신자 재조회",
+        "ms": 63823
+      }
+    ]
+  },
+  "model": "claude-sonnet-5-5",
+  "linksFromHost": [
+    "http://localhost:53170/ai-artifacts/f6821151-ed6a-4d71-8d81-617f8dd03682",
+    "http://localhost:53170/ai-artifacts/f6821151-ed6a-4d71-8d81-617f8dd03682"
+  ],
+  "media": {
+    "frameCount": 87,
+    "elapsedSeconds": 67.531,
+    "media": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "h264",
+          "width": 1440,
+          "height": 900,
+          "side_data_list": [
+            {}
+          ]
+        },
+        {
+          "codec_name": "bin_data"
+        }
+      ],
+      "format": {
+        "duration": "67.791667",
+        "size": "620464"
+      }
+    }
+  },
+  "catalog": {
+    "pages": [
+      50,
+      5
+    ],
+    "unique": 55,
+    "query": "alpha 100%_",
+    "matched": {
+      "id": "d924ae73-12fa-44a8-a171-c37773a78bd2",
+      "kind": "document",
+      "title": "분기 정산 · ＡＬＰＨＡ 100%_완료",
+      "revision": 1,
+      "updatedAt": "2026-11-22T04:02:01.076Z"
+    },
+    "otherOwnerCount": 0,
+    "otherSharedCount": 0,
+    "otherDirect": 404,
+    "malformedCursor": 400
+  },
+  "afterRestart": [
+    {
+      "label": "conflictDocument",
+      "id": "6da5f4dd-331b-4ddc-84c4-80297b825ada",
+      "kind": "document",
+      "revision": 4,
+      "values": null,
+      "archive": [
+        1,
+        2,
+        3
+      ],
+      "readers": 0
+    },
+    {
+      "label": "liveChart",
+      "id": "f6821151-ed6a-4d71-8d81-617f8dd03682",
+      "kind": "chart",
+      "revision": 2,
+      "values": [
+        120,
+        100
+      ],
+      "archive": [
+        1
+      ],
+      "readers": 0
+    },
+    {
+      "label": "originalChart",
+      "id": "b4600c7a-ecba-4e97-9a20-2f3f683f30cc",
+      "kind": "chart",
+      "revision": 2,
+      "values": [
+        120,
+        100
+      ],
+      "archive": [
+        1
+      ],
+      "readers": 0
+    },
+    {
+      "label": "restoredDocument",
+      "id": "44a0f158-ec65-47e7-807b-3e195ddda48b",
+      "kind": "document",
+      "revision": 3,
+      "values": null,
+      "archive": [
+        1,
+        2
+      ],
+      "readers": 0
+    },
+    {
+      "label": "sourceCopy",
+      "id": "e816bbd0-923b-41fb-8d80-e8697a0bf61b",
+      "kind": "chart",
+      "revision": 1,
+      "values": [
+        120,
+        80
+      ],
+      "archive": [],
+      "readers": 0
+    }
+  ],
+  "unchangedAcrossRestart": true,
+  "restoredDocument": [
+    {
+      "revision": 1,
+      "title": "지역별 매출 요약",
+      "digest": "246e355fb1e22d270480839d5d4388b7"
+    },
+    {
+      "revision": 2,
+      "title": "지역별 매출 요약 · 수정안",
+      "digest": "8a5f5b057c76f3281d7cc8f493ce5504"
+    },
+    {
+      "revision": 3,
+      "title": "지역별 매출 요약",
+      "digest": "246e355fb1e22d270480839d5d4388b7"
+    }
+  ],
+  "sourceCopy": {
+    "copy": "e816bbd0-923b-41fb-8d80-e8697a0bf61b",
+    "copyRows": [
+      [
+        "구분",
+        "발표용 합성 데이터 (단위: 만 원)"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "80"
+      ]
+    ],
+    "original": "b4600c7a-ecba-4e97-9a20-2f3f683f30cc",
+    "latestRows": [
+      [
+        "구분",
+        "발표용 합성 데이터 (단위: 만 원)"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "100"
+      ]
+    ]
+  },
+  "reportWidths": [
+    {
+      "viewport": 390,
+      "scroll": 390,
+      "rows": 4,
+      "headers": [
+        "col",
+        "col"
+      ],
+      "source": 180.953125
+    },
+    {
+      "viewport": 768,
+      "scroll": 768,
+      "rows": 4,
+      "headers": [
+        "col",
+        "col"
+      ],
+      "source": 180.953125
+    },
+    {
+      "viewport": 1440,
+      "scroll": 1440,
+      "rows": 4,
+      "headers": [
+        "col",
+        "col"
+      ],
+      "source": 180.953125
+    }
+  ],
+  "organizationEnrollment": {
+    "signup": true,
+    "generatedByRecipient": true,
+    "approvedByOrgAdmin": true,
+    "role": "member",
+    "team": "시연팀",
+    "organization": "VanillaMeta Demo"
+  },
+  "help": {
+    "images": [
+      {
+        "file": "first-chart-consent.png",
+        "width": 1440,
+        "height": 900,
+        "status": 200,
+        "sha256": "2810dddee1ce5fd2cd0dc479dffae615113715bb371a0ebb35ddf91ac101f325"
+      },
+      {
+        "file": "first-chart-updated.png",
+        "width": 1440,
+        "height": 900,
+        "status": 200,
+        "sha256": "de3c580ececafde3d3e5e1146eeae7953988349b3a82b7d193957e0905b4e35f"
+      },
+      {
+        "file": "first-chart-restore.png",
+        "width": 1512,
+        "height": 839,
+        "status": 200,
+        "sha256": "aa1ab3255dd2158fd295da837c1eed3888b262997c74ca8636952c6be2ff05d5"
+      },
+      {
+        "file": "first-chart-granted.png",
+        "width": 1512,
+        "height": 839,
+        "status": 200,
+        "sha256": "614a0fc1065e6186cd75ca4b77f2c0cdbce449ddae0af8d1a1afc1cf216aafbf"
+      },
+      {
+        "file": "first-chart-received.png",
+        "width": 1500,
+        "height": 861,
+        "status": 200,
+        "sha256": "6cc59c18e6439a9e5b347e740841768321923e4b7f9d7752fea34bc278164d65"
+      },
+      {
+        "file": "first-chart-reader.png",
+        "width": 1500,
+        "height": 861,
+        "status": 200,
+        "sha256": "4230798e975ba744eefb86c59847fa2eeb57ff5e41eb003b3ca26286c52fd787"
+      },
+      {
+        "file": "first-chart-source.png",
+        "width": 1512,
+        "height": 839,
+        "status": 200,
+        "sha256": "9bfb4209f8dffe1e4a46888c25466a1c55ec4299fb7f34b6d012f13310201516"
+      }
+    ],
+    "organizationLink": "/organization#add-colleague"
+  }
+}
