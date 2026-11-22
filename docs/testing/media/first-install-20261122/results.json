@@ -1,0 +1,415 @@
+{
+  "organization": {
+    "organizationId": 1,
+    "createdVia": "web",
+    "member": [
+      [
+        "조직",
+        "VanillaMeta Demo"
+      ],
+      [
+        "조직 번호",
+        "#1"
+      ],
+      [
+        "내 역할",
+        "member (구성원)"
+      ],
+      [
+        "팀",
+        "분석팀"
+      ]
+    ]
+  },
+  "approval": {
+    "organization": "VanillaMeta Demo",
+    "scopes": [
+      "내 아티팩트 읽기",
+      "내 아티팩트 만들기·수정·삭제"
+    ],
+    "callbackPort": 53683
+  },
+  "connection": {
+    "status": "Connected",
+    "commands": [
+      "claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:53483/v1/mcp'",
+      "claude mcp login vanillameta --no-browser"
+    ],
+    "host": "2.1.330 (Claude Code)"
+  },
+  "claude-turn1": {
+    "prompt": "서울 매출 120만 원, 부산 80만 원을 지역별 막대 차트로 만들고 제목을 ‘지역별 매출’로 해 줘. 발표용 합성 데이터와 만 원 단위를 표시하고 VanillaMeta 링크를 줘",
+    "reply": "차트를 만들었습니다.\n\n**VanillaMeta 링크:** http://localhost:53482/ai-artifacts/ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3\n\n- **제목:** 지역별 매출\n- **차트 종류:** 막대 차트\n- **데이터:** 서울 120, 부산 80\n- **표기:** 시리즈 이름을 \"매출 (단위: 만 원, 발표용 합성 데이터)\"로 지정해 만 원 단위와 합성 데이터임을 함께 표시했습니다.\n\n차트 형식이 제목, 라벨, 시리즈만 지원해서 별도 각주나 축 제목은 넣지 못했습니다. 단위와 합성 데이터 안내는 범례(시리즈 이름)에 들어갑니다. 링크는 로컬 주소(localhost)라서 이 컴퓨터에서만 열립니다.",
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "revision": 1,
+    "url": "http://localhost:53482/ai-artifacts/ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "model": "claude-sonnet-5-5",
+    "sameConversation": false,
+    "hostTools": [
+      "mcp__vanillameta__vm_create_artifact",
+      "mcp__vanillameta__vm_delete_artifact",
+      "mcp__vanillameta__vm_get_artifact",
+      "mcp__vanillameta__vm_list_artifacts",
+      "mcp__vanillameta__vm_update_artifact"
+    ]
+  },
+  "claude-turn2": {
+    "prompt": "부산 매출을 100만 원으로 수정해 줘",
+    "reply": "부산 매출을 100만 원으로 수정했습니다. 차트는 revision 2가 됐고 링크는 그대로입니다.\n\n**VanillaMeta 링크:** http://localhost:53482/ai-artifacts/ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3\n\n| 지역 | 매출 (만 원) |\n|---|---|\n| 서울 | 120 |\n| 부산 | 100 (80에서 수정) |\n\n제목 \"지역별 매출\", 막대 차트, 만 원 단위와 \"발표용 합성 데이터\" 표기는 그대로 유지했습니다.",
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "revision": 2,
+    "url": "http://localhost:53482/ai-artifacts/ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "model": "claude-sonnet-5-5",
+    "sameConversation": true,
+    "hostTools": [
+      "mcp__vanillameta__vm_create_artifact",
+      "mcp__vanillameta__vm_delete_artifact",
+      "mcp__vanillameta__vm_get_artifact",
+      "mcp__vanillameta__vm_list_artifacts",
+      "mcp__vanillameta__vm_update_artifact"
+    ]
+  },
+  "artifact-journey": {
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "v1": {
+      "revision": 1,
+      "screen": "13-chart-v1.png"
+    },
+    "v2": [
+      [
+        "구분",
+        "매출 (단위: 만 원, 발표용 합성 데이터)"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "100"
+      ]
+    ],
+    "closedAndReopened": true,
+    "privateSearch": 0,
+    "privateDirectDenied": true,
+    "readOnly": true,
+    "revokedDirectDenied": true
+  },
+  "postgres-before": {
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "revision": 2,
+    "title": "지역별 매출",
+    "labels": [
+      "서울",
+      "부산"
+    ],
+    "unitAndLegend": "매출 (단위: 만 원, 발표용 합성 데이터)",
+    "values": [
+      120,
+      100
+    ],
+    "history": [
+      {
+        "revision": 1,
+        "values": [
+          120,
+          80
+        ]
+      }
+    ],
+    "recipients": 0
+  },
+  "postgres-after": {
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "revision": 2,
+    "title": "지역별 매출",
+    "labels": [
+      "서울",
+      "부산"
+    ],
+    "unitAndLegend": "매출 (단위: 만 원, 발표용 합성 데이터)",
+    "values": [
+      120,
+      100
+    ],
+    "history": [
+      {
+        "revision": 1,
+        "values": [
+          120,
+          80
+        ]
+      }
+    ],
+    "recipients": 0
+  },
+  "api-before": {
+    "owner": {
+      "status": 200,
+      "revision": 2,
+      "values": [
+        120,
+        100
+      ]
+    },
+    "reader": {
+      "status": 404,
+      "titleOrContentDisclosed": false
+    }
+  },
+  "api-after": {
+    "owner": {
+      "status": 200,
+      "revision": 2,
+      "values": [
+        120,
+        100
+      ]
+    },
+    "reader": {
+      "status": 404,
+      "titleOrContentDisclosed": false
+    }
+  },
+  "restart-browser": {
+    "id": "ce39bfc1-7fea-4bc5-b5be-c0a1a64e7ef3",
+    "saved": [
+      [
+        "구분",
+        "매출 (단위: 만 원, 발표용 합성 데이터)"
+      ],
+      [
+        "서울",
+        "120"
+      ],
+      [
+        "부산",
+        "100"
+      ]
+    ],
+    "ownerRevision": 2,
+    "readerDenied": true,
+    "at": "2026-11-22T05:45:02.402Z"
+  },
+  "guide-preview": {
+    "page": "/codex-first-chart",
+    "title": "Codex로 첫 차트 만들기\n​",
+    "images": [
+      [
+        "/images/first-chart-consent.png",
+        1440
+      ],
+      [
+        "/images/first-chart-updated.png",
+        1440
+      ],
+      [
+        "/images/first-chart-restore.png",
+        1512
+      ],
+      [
+        "/images/first-chart-granted.png",
+        1512
+      ],
+      [
+        "/images/first-chart-received.png",
+        1500
+      ],
+      [
+        "/images/first-chart-reader.png",
+        1500
+      ],
+      [
+        "/images/first-chart-source.png",
+        1512
+      ]
+    ]
+  },
+  "project": "vm-first-cold",
+  "ports": {
+    "web": 53482,
+    "api": 53483,
+    "callback": 53683
+  },
+  "preflight": {
+    "started": "2026-11-22T05:19:50+00:00",
+    "ready": "2026-11-22T05:22:11+00:00",
+    "seconds": 141.0,
+    "project": "vm-first-main",
+    "newVolumes": true,
+    "buildCache": "existing image layers",
+    "web": 200,
+    "api": 200,
+    "metadata": {
+      "resource": "http://localhost:53481/v1/mcp",
+      "authorization_servers": [
+        "http://localhost:53481/v1/mcp-oauth"
+      ],
+      "scopes_supported": [
+        "artifacts:read",
+        "artifacts:write"
+      ],
+      "bearer_methods_supported": [
+        "header"
+      ]
+    }
+  },
+  "elapsedSeconds": {
+    "startToReady": 198.0,
+    "startToFirstChart": 380.425,
+    "promptToFirstChart": 29.074
+  },
+  "edge": {
+    "project": "vm-first-edge",
+    "composeFiles": [
+      "docker-compose.yml",
+      "compose.demo.yml"
+    ],
+    "ports": {
+      "web": 53490,
+      "api": 53491,
+      "postgresPublished": false
+    },
+    "composeHealthy": true,
+    "callback": {
+      "uri": "http://127.0.0.1:53683/callback",
+      "bound": false,
+      "usedForOAuthRedirects": true
+    },
+    "officialFlow": {
+      "clientId": "claude-code",
+      "pkce": "S256",
+      "browserWorkspace": "Ego task space 25",
+      "realBrowserConsent": true
+    },
+    "portCollision": [
+      {
+        "port": 53490,
+        "exit": 125,
+        "error": true
+      },
+      {
+        "port": 53491,
+        "exit": 125,
+        "error": true
+      }
+    ],
+    "cancellation": {
+      "result": "cancelled",
+      "callbackMatched": true,
+      "stateMatches": true,
+      "error": "access_denied",
+      "codePresent": false,
+      "callbackListenerBound": false,
+      "repeatRequestStatus": 409,
+      "repeatRequestMessage": "{\"error\":\"invalid_request\",\"message\":\"Request rejected.\"}",
+      "note": "The callback was intentionally not bound; the redirect was read from browser navigation history.",
+      "database": {
+        "cancelledPending": 1,
+        "grants": 0,
+        "codes": 0,
+        "tokens": 0
+      }
+    },
+    "insufficientScope": {
+      "approvalScopes": [
+        {
+          "label": "내 아티팩트 읽기",
+          "checked": true
+        },
+        {
+          "label": "내 아티팩트 만들기·수정·삭제",
+          "checked": false
+        }
+      ],
+      "tokenStatus": 200,
+      "tokenScope": "artifacts:read",
+      "tokenType": "Bearer",
+      "expiresIn": 599,
+      "issuedAt": "2026-11-22T05:30:57.680Z",
+      "expiresAt": "2026-11-22T05:40:56.680Z",
+      "refreshTokenIssued": false,
+      "tools": [
+        "vm_get_artifact",
+        "vm_list_artifacts"
+      ],
+      "readToolsPresent": true,
+      "writeToolsPresent": false,
+      "writeAttemptStatus": 200,
+      "writeAttemptMessage": "Tool vm_create_artifact not found",
+      "callbackListenerBound": false
+    },
+    "pendingExpiration": {
+      "beforeLoaded": true,
+      "after": {
+        "alert": [
+          "요청이 만료되었습니다. AI 클라이언트에서 새 연결을 시작해 주세요."
+        ],
+        "buttons": [
+          {
+            "text": "연결 승인",
+            "disabled": true
+          },
+          {
+            "text": "요청 취소",
+            "disabled": true
+          }
+        ]
+      },
+      "expiresAt": "short server deadline used for browser-visible expiry",
+      "callbackListenerBound": false,
+      "serverStatusAfterExpiry": 403,
+      "serverMessageAfterExpiry": "{\"error\":\"invalid_request\",\"message\":\"Request rejected.\"}"
+    },
+    "tokenExpiration": {
+      "issuedAt": "2026-11-22T05:30:57.680Z",
+      "originalExpiresAt": "2026-11-22T05:40:56.680Z",
+      "checkedAt": "2026-11-22T05:35:45.343Z",
+      "deadlineMethod": "fixture-accelerated in the isolated PostgreSQL database; the token and endpoint are real",
+      "status": 401,
+      "wwwAuthenticate": "Bearer resource_metadata=\"http://localhost:53491/.well-known/oauth-protected-resource/v1/mcp\"",
+      "body": "{\"error\":\"invalid_token\"}",
+      "callbackListenerBound": false
+    },
+    "repeatDecisionConflict": {
+      "status": 409,
+      "code": "invalid_request",
+      "decisionsAppliedTwice": false
+    },
+    "productRows": {
+      "aiArtifacts": 0
+    },
+    "focusedTests": {
+      "suite": "src/mcp-oauth/mcp-oauth.service.spec.ts",
+      "passed": 54,
+      "skipped": 2,
+      "failed": 0
+    },
+    "video": {
+      "duration": "19.500000",
+      "size": "203724"
+    },
+    "sanitized": {
+      "credentialsRemoved": true,
+      "authorizationHeadersRemoved": true,
+      "rawTokensOrCodesStored": false,
+      "accountLabelMaskedInImages": true
+    },
+    "teardown": {
+      "projectStopped": true,
+      "containersRemaining": 0,
+      "listeningPortsRemaining": 0,
+      "privateOAuthArtifactsRemoved": true
+    },
+    "limits": [
+      "Callback 53683 was intentionally not bound.",
+      "Token expiry deadline was fixture-accelerated in the isolated PostgreSQL database after issuance.",
+      "This is not Claude Code host execution; browser consent was real and MCP calls used the resulting official-flow token."
+    ]
+  },
+  "video": {
+    "duration": "149.200000",
+    "size": "948470"
+  },
+  "platform": "macOS arm64 · Colima · existing image layers, new PostgreSQL volume"
+}
