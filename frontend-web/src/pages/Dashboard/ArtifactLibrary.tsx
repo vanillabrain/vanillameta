@@ -32,7 +32,7 @@ type Row =
   | { kind: 'report'; item: ReportLibraryItem }
   | { kind: 'google'; item: DocumentSummary }
   | { kind: 'file'; item: FileArtifactSummary }
-  | { kind: 'ai'; item: AiArtifactSummary };
+  | { kind: 'ai'; item: AiArtifactSummary; received: boolean };
 type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file' | 'ai';
 
 const iconFor = (row: Row) => {
@@ -140,7 +140,7 @@ export default function ArtifactLibrary({
     ...(scope === 'shared' ? [] : view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
-    ...(view === 'active' ? aiArtifacts.map(item => ({ kind: 'ai' as const, item })) : []),
+    ...(view === 'active' ? aiArtifacts.map(item => ({ kind: 'ai' as const, item, received: scope === 'shared' })) : []),
   ];
   const results = useMemo(() => {
     const text = normalized(query);
@@ -404,7 +404,7 @@ function ArtifactRow({
       : row.kind === 'file'
       ? t(file.shareActive ? 'artifact.shared' : 'artifact.private')
       : row.kind === 'ai'
-      ? t('artifact.owned')
+      ? t(row.received ? 'artifact.received' : 'artifact.owned')
       : '';
   return (
     <li
