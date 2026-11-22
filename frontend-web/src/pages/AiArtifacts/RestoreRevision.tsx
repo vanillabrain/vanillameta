@@ -10,10 +10,10 @@ type Props = {
   scope: string;
   revision: number;
   expectedRevision: number;
-  onRestored: () => void;
+  openLatest: () => void;
 };
 
-export function RestoreRevision({ id, scope, revision, expectedRevision, onRestored }: Props) {
+export function RestoreRevision({ id, scope, revision, expectedRevision, openLatest }: Props) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const [stage, setStage] = React.useState<'idle' | 'review' | 'saving' | 'error'>('idle');
@@ -41,7 +41,7 @@ export function RestoreRevision({ id, scope, revision, expectedRevision, onResto
       await client.cancelQueries({ queryKey: key, exact: true });
       client.setQueryData<AiArtifactDetail>(key, prior => (prior && prior.revision > restored.revision ? prior : restored));
       void client.invalidateQueries({ queryKey: ['artifact-hub', 'ai-artifacts', scope] });
-      if (mounted.current) onRestored();
+      if (mounted.current) openLatest();
     } catch {
       if (mounted.current) setStage('error');
     } finally {
@@ -54,7 +54,10 @@ export function RestoreRevision({ id, scope, revision, expectedRevision, onResto
         {t('aiArtifact.restoreError')}{' '}
         <Button
           variant="outline"
-          onClick={() => client.invalidateQueries({ queryKey: ['ai-artifact', scope, id], exact: true })}
+          onClick={() => {
+            openLatest();
+            void client.invalidateQueries({ queryKey: ['ai-artifact', scope, id], exact: true });
+          }}
         >
           {t('aiArtifact.checkLatest')}
         </Button>

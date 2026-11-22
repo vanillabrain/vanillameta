@@ -1,5 +1,8 @@
 export default {
   aiArtifact: {
+    downloadSource: '제작 원본 저장 (.json)',
+    downloadStarted: '버전 {{revision}} 원본 다운로드를 시작했습니다.',
+    downloadError: '이 버전의 제작 원본을 받지 못했습니다. 접근 권한을 확인한 뒤 다시 시도하세요.',
     loadMore: 'AI 아티팩트 더 보기',
     history: '버전 기록',
     latestRevision: '버전 {{revision}} · 최신',

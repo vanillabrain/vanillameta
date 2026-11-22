@@ -110,6 +110,7 @@ it('never requests historical content or its index on a recipient link', async (
   show('/ai-artifacts/' + id + '?revision=1');
   await screen.findByText('Latest body');
   expect(screen.getByText('aiArtifact.readOnly')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'aiArtifact.downloadSource' })).toBeNull();
   expect(aiArtifactService.revisions).not.toHaveBeenCalled();
   expect(aiArtifactService.revision).not.toHaveBeenCalled();
 });
@@ -138,4 +139,67 @@ it('requires confirmation, cancels without writing and reopens the newly restore
   await screen.findByText('aiArtifact.shareTitle');
   expect(aiArtifactService.restore).toHaveBeenCalledExactlyOnceWith(id, 1, 2);
   expect(screen.getByRole('heading', { name: 'First title' })).toBeTruthy();
+});
+
+it('opens the current head after a conflicting restore without submitting a second write', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revision).mockResolvedValue({
+    ...current, revision: 1, content: { markdown: 'Earlier body' },
+  });
+  vi.mocked(aiArtifactService.restore).mockRejectedValue(new Error('revision mismatch'));
+  show('/ai-artifacts/' + id + '?revision=1');
+  await screen.findByText('Earlier body');
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.restore' }));
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.confirmRestore' }));
+  const check = await screen.findByRole('button', { name: 'aiArtifact.checkLatest' });
+  vi.mocked(aiArtifactService.detail).mockResolvedValue({
+    ...current, revision: 3, content: { markdown: 'Concurrent edit' },
+  });
+  fireEvent.click(check);
+  await screen.findByText('Concurrent edit');
+  expect(screen.queryByText('Earlier body')).toBeNull();
+  expect(aiArtifactService.restore).toHaveBeenCalledTimes(1);
+});
+
+it('downloads only creation fields from the authorized selected version', async () => {
+  const older = { ...current, title: '분기 / 매출', revision: 1, content: { markdown: 'Earlier body' } };
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revision).mockResolvedValue(older);
+  const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:artifact-source');
+  let name = '';
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    name = this.download;
+  });
+  try {
+    show('/ai-artifacts/' + id + '?revision=1');
+    await screen.findByText('Earlier body');
+    fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.downloadSource' }));
+    await screen.findByText('aiArtifact.downloadStarted');
+    expect(name).toBe('분기  매출-v1.json');
+    expect(aiArtifactService.revision).toHaveBeenLastCalledWith(id, 1, expect.any(AbortSignal));
+    const file = create.mock.calls[0][0] as Blob;
+    const raw = await new Promise<string>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsText(file);
+    });
+    expect(JSON.parse(raw)).toEqual({ kind: 'document', title: older.title, content: older.content });
+  } finally {
+    click.mockRestore();
+    create.mockRestore();
+  }
+});
+
+it('keeps source private when ownership cannot be confirmed', async () => {
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revision).mockRejectedValue(new Error('Access revoked'));
+  const create = vi.spyOn(URL, 'createObjectURL');
+  try {
+    show('/ai-artifacts/' + id);
+    fireEvent.click(await screen.findByRole('button', { name: 'aiArtifact.downloadSource' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('aiArtifact.downloadError');
+    expect(create).not.toHaveBeenCalled();
+  } finally {
+    create.mockRestore();
+  }
 });

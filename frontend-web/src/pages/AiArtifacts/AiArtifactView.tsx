@@ -1,4 +1,6 @@
 import React from 'react';
+import { ArtifactMarkdown } from './ArtifactMarkdown';
+import { ArtifactSourceDownload } from './ArtifactSourceDownload';
 import { RestoreRevision } from './RestoreRevision';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -36,69 +38,6 @@ function HtmlBody({ content }: { content: Record<string, unknown> }) {
       srcDoc={html}
       className="min-h-[480px] w-full rounded-xl border border-border bg-white"
     />
-  );
-}
-
-function inline(text: string): React.ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>;
-    return <React.Fragment key={index}>{part}</React.Fragment>;
-  });
-}
-
-function renderMarkdown(markdown: string) {
-  const lines = markdown.split('\n');
-  const blocks: React.ReactNode[] = [];
-  let paragraph: string[] = [];
-  let list: string[] = [];
-  let ordered = false;
-  const flushParagraph = () => {
-    if (!paragraph.length) return;
-    blocks.push(<p key={blocks.length}>{inline(paragraph.join(' '))}</p>);
-    paragraph = [];
-  };
-  const flushList = () => {
-    if (!list.length) return;
-    const items = list.map((item, index) => <li key={index}>{inline(item)}</li>);
-    blocks.push(ordered ? <ol key={blocks.length}>{items}</ol> : <ul key={blocks.length}>{items}</ul>);
-    list = [];
-  };
-  for (const line of lines) {
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
-    const bullet = /^[-*]\s+(.*)$/.exec(line);
-    const numbered = /^\d+\.\s+(.*)$/.exec(line);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      const level = Math.min(heading[1].length + 1, 6) as 2 | 3 | 4 | 5 | 6;
-      blocks.push(React.createElement(`h${level}`, { key: blocks.length }, inline(heading[2])));
-    } else if (bullet || numbered) {
-      flushParagraph();
-      const nextOrdered = Boolean(numbered);
-      if (list.length && ordered !== nextOrdered) flushList();
-      ordered = nextOrdered;
-      const item = (bullet ?? numbered) as RegExpExecArray;
-      list.push(item[1]);
-    } else if (!line.trim()) {
-      flushParagraph();
-      flushList();
-    } else {
-      flushList();
-      paragraph.push(line.trim());
-    }
-  }
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
-function DocumentBody({ content }: { content: Record<string, unknown> }) {
-  const { markdown } = documentSchema.parse(content);
-  return (
-    <article className="prose flex max-w-none flex-col gap-3 rounded-xl border border-border bg-card p-6">
-      {renderMarkdown(markdown)}
-    </article>
   );
 }
 
@@ -191,7 +130,7 @@ function ChartBody({ content }: { content: Record<string, unknown> }) {
 
 function Body({ artifact }: { artifact: AiArtifactDetail }) {
   if (artifact.kind === 'html') return <HtmlBody content={artifact.content} />;
-  if (artifact.kind === 'document') return <DocumentBody content={artifact.content} />;
+  if (artifact.kind === 'document') return <ArtifactMarkdown markdown={documentSchema.parse(artifact.content).markdown} />;
   if (artifact.kind === 'sheet') return <SheetBody content={artifact.content} />;
   return <ChartBody content={artifact.content} />;
 }
@@ -408,7 +347,7 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
           revision={wanted}
           expectedRevision={latest.revision}
           scope={scope}
-          onRestored={() => {
+          openLatest={() => {
             const next = new URLSearchParams(params);
             next.delete('revision');
             setParams(next);
@@ -417,7 +356,12 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
         />
       )}
       {!isPast && <ArtifactSharing id={latest.id} scope={scope} />}
-      {shown && <Body artifact={shown} />}
+      {shown && (
+        <>
+          <Body artifact={shown} />
+          <ArtifactSourceDownload key={scope + ':' + shown.id + ':' + shown.revision} id={shown.id} revision={shown.revision} scope={scope} />
+        </>
+      )}
     </>
   );
 }

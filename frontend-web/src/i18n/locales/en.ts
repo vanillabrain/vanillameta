@@ -1,5 +1,8 @@
 export default {
   aiArtifact: {
+    downloadSource: 'Download source (.json)',
+    downloadStarted: 'Started downloading the source for version {{revision}}.',
+    downloadError: 'Could not download this version. Check your access and try again.',
     loadMore: 'Load more AI artifacts',
     history: 'Version history',
     latestRevision: 'Version {{revision}} · Latest',
