@@ -5,7 +5,9 @@ import { ShieldCheck } from 'lucide-react';
 import { aiConnectionsService, AiScope, ConsentDecision, ConsentRequest } from '@/api/aiConnectionsService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
-import { ConnectionFrame, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
+import { Notice } from '@/components/ui/notice';
+import { claudeLoginCommand, CLAUDE_CLIENT_ID } from './claudeSetup';
+import { ConnectionFrame, CopyableCommand, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
 
 type State =
   | { kind: 'loading' }
@@ -72,6 +74,7 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
   if (state.kind === 'loading' || state.kind === 'submitting')
     return <p role="status">{t(state.kind === 'loading' ? 'aiConnections.loading' : 'aiConnections.working')}</p>;
   const expired = Date.parse(state.request.expiresAt) <= now;
+  const missingWrite = !state.request.requestedScopes.includes('artifacts:write');
   return (
     <section className="flex flex-col gap-5 rounded-xl border border-border bg-card p-6">
       <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -103,6 +106,13 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
         <dt>{t('aiConnections.expires')}</dt>
         <dd>{new Date(state.request.expiresAt).toLocaleString()}</dd>
       </dl>
+      <Notice severity="info" aria-label={t('aiConnections.approvalGuidance')}>
+        <div className="flex flex-col gap-2">
+          <p>{t('aiConnections.cancelGuidance')}</p>
+          <p>{t('aiConnections.expiryGuidance')}</p>
+          {missingWrite && <p>{t('aiConnections.missingWriteGuidance')}</p>}
+        </div>
+      </Notice>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 font-medium">{t('aiConnections.scopes')}</legend>
         {state.request.requestedScopes.map(scopeName => (
@@ -133,7 +143,18 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
           </label>
         ))}
       </fieldset>
-      {expired && <p role="alert">{t('aiConnections.expired')}</p>}
+      {expired && (
+        <div className="flex flex-col gap-3">
+          <p role="alert">{t('aiConnections.expired')}</p>
+          {state.request.clientId === CLAUDE_CLIENT_ID && (
+            <CopyableCommand
+              command={claudeLoginCommand()}
+              commandLabel={t('aiConnections.loginCommand')}
+              copyLabel={t('aiConnections.copyLogin')}
+            />
+          )}
+        </div>
+      )}
       <div className="flex gap-3">
         <Button
           className="h-10"

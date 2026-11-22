@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plug } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 
@@ -11,6 +11,59 @@ export const SCOPE_LABEL_KEYS: Record<string, string> = {
   'artifacts:read': 'artifactsRead',
   'artifacts:write': 'artifactsWrite',
 };
+
+export function CopyableCommand({
+  command,
+  commandLabel,
+  copyLabel,
+}: {
+  command: string;
+  commandLabel: string;
+  copyLabel: string;
+}) {
+  const { t } = useTranslation();
+  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const copy = async () => {
+    setState('idle');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(command);
+      setState('copied');
+    } catch {
+      setState('error');
+    }
+  };
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
+        <pre
+          tabIndex={0}
+          aria-label={commandLabel}
+          className="min-w-0 flex-1 overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs leading-5 whitespace-pre"
+        >
+          <code>{command}</code>
+        </pre>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 self-start"
+          aria-label={copyLabel}
+          onClick={() => void copy()}
+        >
+          {state === 'copied' ? <Check /> : <Copy />}
+          {t('aiConnections.copy')}
+        </Button>
+      </div>
+      {state !== 'idle' && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {t(state === 'copied' ? 'aiConnections.copied' : 'aiConnections.copyError')}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function useConnectionScope() {
   const [scope, setScope] = useState(personalLibrarySessionScope);

@@ -6,7 +6,8 @@ import { aiConnectionsService, AiConnection, AiConnectionList } from '@/api/aiCo
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ConnectionFrame, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
+import { ConnectionFrame, CopyableCommand, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
+import { ClaudeMcpCommand, claudeMcpCommands } from './claudeSetup';
 
 function Disconnect({ connection, scope, onRevoked }: { connection: AiConnection; scope: string; onRevoked: () => void }) {
   const { t } = useTranslation();
@@ -89,6 +90,10 @@ function Disconnect({ connection, scope, onRevoked }: { connection: AiConnection
 }
 
 type State = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: AiConnectionList };
+const commandCopyLabel = (command: ClaudeMcpCommand) =>
+  command.purpose === 'register' ? 'aiConnections.copyRegistration' : 'aiConnections.copyLogin';
+const commandLabel = (command: ClaudeMcpCommand) =>
+  command.purpose === 'register' ? 'aiConnections.registrationCommand' : 'aiConnections.loginCommand';
 function Connections({ scope }: { scope: string | null }) {
   const { t } = useTranslation();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -131,6 +136,7 @@ function Connections({ scope }: { scope: string | null }) {
       </>
     );
   if (state.kind === 'loading') return <p role="status">{t('aiConnections.loading')}</p>;
+  const commands = claudeMcpCommands(state.data.resourceUrl);
   return (
     <>
       {!state.data.configured && <p role="status">{t('aiConnections.notConfigured')}</p>}
@@ -138,9 +144,30 @@ function Connections({ scope }: { scope: string | null }) {
         {t('aiConnections.organization')}: {state.data.organization?.name ?? t('aiConnections.membershipRequired')}
       </p>
       {state.data.resourceUrl && (
-        <p className="break-all text-sm text-muted-foreground">
-          {t('aiConnections.resource')}: {state.data.resourceUrl}
-        </p>
+        <div className="min-w-0 rounded-xl border border-border bg-card p-5">
+          <h2 className="font-semibold">{t('aiConnections.claudeTitle')}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t('aiConnections.claudeHint')}</p>
+          <p className="mt-3 break-all text-sm text-muted-foreground">
+            {t('aiConnections.serverUrl')}: <code className="select-all">{state.data.resourceUrl}</code>
+          </p>
+          {commands.length > 0 && (
+            <div className="mt-4 flex min-w-0 flex-col gap-4">
+              {commands.map(command => (
+                <div key={command.purpose} className="min-w-0">
+                  <p className="mb-2 text-sm font-medium">{t(commandLabel(command))}</p>
+                  <CopyableCommand
+                    command={command.command}
+                    commandLabel={t(commandLabel(command))}
+                    copyLabel={t(commandCopyLabel(command))}
+                  />
+                  {command.purpose === 'login' && (
+                    <p className="mt-2 text-xs text-muted-foreground">{t('aiConnections.approvalReturnHint')}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       <p className="text-sm text-muted-foreground">{t('aiConnections.startHint')}</p>
       <p className="text-sm text-muted-foreground">{t('aiConnections.tokenLifetime')}</p>

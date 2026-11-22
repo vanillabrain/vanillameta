@@ -190,6 +190,13 @@ it('preserves the existing source-specific AI panel link', () => {
   show('/dashboard?aiSourceId=32');
   expect(screen.getByText('기존 소스 32 편집')).toBeTruthy();
 });
+it('puts organization and external AI setup paths on the first screen', async () => {
+  show();
+  await screen.findByText('Alpha analysis');
+  expect(screen.getByRole('link', { name: '조직·직원' }).getAttribute('href')).toBe('/organization');
+  expect(document.querySelector('a[href="/organizations"]')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Claude 또는 외부 AI 연결' }).getAttribute('href')).toBe('/ai-connections');
+});
 it('releases the loading overlay on a save handoff and preserves broad dashboard invalidation', async () => {
   const pending = deferred();
   api.get.mockReturnValue(pending.promise);

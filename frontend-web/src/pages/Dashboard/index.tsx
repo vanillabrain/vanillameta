@@ -12,7 +12,7 @@ import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } fr
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
-import { Plus, Plug } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import AiDashboardPanel from './Components/AiDashboardPanel';
 import GettingStarted from './Components/GettingStarted';
+import ArtifactOnboardingPaths from './Components/ArtifactOnboardingPaths';
 import DashboardDeleteDialog, { DashboardDeleteTarget } from './Components/DashboardDeleteDialog';
 import { STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
 import {
@@ -372,20 +373,14 @@ function Dashboard() {
               )
             }
           >
+            <ArtifactOnboardingPaths />
             <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
               <Button asChild variant="outline" className="h-10">
                 <Link to={artifactLink('/documents')}>{t('docConnection.title')}</Link>
               </Button>
               <Button asChild variant="outline" className="h-10">
-                <Link to="/ai-connections">
-                  <Plug />
-                  {t('aiConnections.title')}
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
                 <Link to="/organizations">{t('artifact.organization')}</Link>
               </Button>
-              <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
             </div>
             {hubScope === 'mine' && view === 'active' && (
               <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">

@@ -7,6 +7,7 @@ import { aiConnectionsService, AiConnectionList, ConsentRequest } from '@/api/ai
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import AiConnections from './index';
 import Approve from './Approve';
+const clipboard = vi.hoisted(() => ({ writeText: vi.fn() }));
 vi.mock('@/api/aiConnectionsService', () => ({
   aiConnectionsService: { list: vi.fn(), request: vi.fn(), decide: vi.fn(), disconnect: vi.fn() },
 }));
@@ -79,6 +80,8 @@ function showList() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard });
+  clipboard.writeText.mockResolvedValue(undefined);
   vi.mocked(personalLibrarySessionScope).mockReturnValue('actor-org-epoch');
   vi.mocked(aiConnectionsService.request).mockResolvedValue(request);
   vi.mocked(aiConnectionsService.list).mockResolvedValue(list);
@@ -95,6 +98,9 @@ it('reviews account, callback and one current organization without auto approval
   expect(org.hasAttribute('disabled')).toBe(true);
   expect(within(org).getAllByRole('option')).toHaveLength(1);
   expect(screen.getAllByRole('checkbox')).toHaveLength(2);
+  expect(screen.getByText(/Cancel request returns access_denied/)).toBeTruthy();
+  expect(screen.getByText(/Approval requests expire after 5 minutes/)).toBeTruthy();
+  expect(screen.getByText(/did not request permission to create, update or delete artifacts/)).toBeTruthy();
   expect(aiConnectionsService.decide).not.toHaveBeenCalled();
 });
 it('keyboard selects a subset and submits only once', async () => {
@@ -135,6 +141,19 @@ it('reload reads only and expired requests cannot submit', async () => {
   expect((await screen.findByRole('button', { name: 'Approve connection' })).hasAttribute('disabled')).toBe(true);
   expect(screen.getByRole('button', { name: 'Cancel request' }).hasAttribute('disabled')).toBe(true);
   expect(aiConnectionsService.decide).not.toHaveBeenCalled();
+});
+it('expired Claude requests show the exact login command for a new attempt', async () => {
+  vi.mocked(aiConnectionsService.request).mockResolvedValue({
+    ...request,
+    clientId: 'claude-code',
+    clientName: 'Claude Code',
+    expiresAt: '2000-01-01T00:00:00.000Z',
+  });
+  showConsent();
+  expect(await screen.findByText('claude mcp login vanillameta --no-browser')).toBeTruthy();
+  await click(screen.getByRole('button', { name: 'Copy Claude login command' }));
+  expect(clipboard.writeText).toHaveBeenCalledWith('claude mcp login vanillameta --no-browser');
+  expect((await screen.findByRole('button', { name: 'Cancel request' })).hasAttribute('disabled')).toBe(true);
 });
 it('late responses from an old actor never become actionable', async () => {
   let finish: (value: ConsentRequest) => void = () => undefined;
@@ -181,6 +200,19 @@ it('list reload shows read scopes and never disconnects', async () => {
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reload list' })));
   expect(aiConnectionsService.list).toHaveBeenCalledTimes(2);
   expect(aiConnectionsService.disconnect).not.toHaveBeenCalled();
+});
+it('shows and copies Claude setup commands from the server URL including a custom port', async () => {
+  vi.mocked(aiConnectionsService.list).mockResolvedValue({ ...list, resourceUrl: 'http://localhost:4567/v1/mcp' });
+  showList();
+  await screen.findByRole('heading', { name: 'Connect Claude Code' });
+  const registration =
+    "claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:4567/v1/mcp'";
+  expect(screen.getByText(registration)).toBeTruthy();
+  expect(screen.getByText('claude mcp login vanillameta --no-browser')).toBeTruthy();
+  expect(screen.getByText(/paste the full returned URL/)).toBeTruthy();
+  await click(screen.getByRole('button', { name: 'Copy Claude registration command' }));
+  expect(clipboard.writeText).toHaveBeenCalledWith(registration);
+  expect(await screen.findByText('Command copied.')).toBeTruthy();
 });
 it('does not steal focus moved elsewhere while reload is pending', async () => {
   let finish: (value: AiConnectionList) => void = () => undefined;
