@@ -5,10 +5,13 @@ import { AiArtifact } from './ai-artifact.entity';
 import { AiArtifactsController } from './ai-artifacts.controller';
 import { AiArtifactsService } from './ai-artifacts.service';
 
+import { AiArtifactSharingService } from './ai-artifact-sharing.service';
+import { AiArtifactShare } from './ai-artifact-share.entity';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([AiArtifact])],
+  imports: [TypeOrmModule.forFeature([AiArtifact, AiArtifactShare])],
   controllers: [AiArtifactsController],
-  providers: [AiArtifactsService, JwtService],
+  providers: [AiArtifactsService, AiArtifactSharingService, JwtService],
   exports: [AiArtifactsService],
 })
 export class AiArtifactsModule {}
