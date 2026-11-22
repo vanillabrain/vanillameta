@@ -78,6 +78,7 @@ docker compose ps
 docker compose logs --tail=200 postgres backend frontend
 ```
 
+- 웹 이미지를 갱신한 뒤 이전 안내가 보이면 해당 설치본의 VanillaMeta 탭을 모두 닫고 웹을 다시 엽니다.
 - 포트 충돌은 `VM_WEB_PORT`와 `VM_API_PORT`로 해결합니다.
 - Claude 도구가 없으면 `/ai-connections`의 주소와 `claude mcp get vanillameta`를 확인합니다.
 - 승인 화면에 쓰기 권한이 없으면 **요청 취소** 후 등록 명령과 로그인 명령을 새로 실행합니다.

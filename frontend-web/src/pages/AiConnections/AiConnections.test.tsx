@@ -209,7 +209,7 @@ it('shows and copies Claude setup commands from the server URL including a custo
     "claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:4567/v1/mcp'";
   expect(screen.getByText(registration)).toBeTruthy();
   expect(screen.getByText('claude mcp login vanillameta --no-browser')).toBeTruthy();
-  expect(screen.getByText(/paste the full returned URL/)).toBeTruthy();
+  expect(screen.getByText(/return to Claude Code/)).toBeTruthy();
   await click(screen.getByRole('button', { name: 'Copy Claude registration command' }));
   expect(clipboard.writeText).toHaveBeenCalledWith(registration);
   expect(await screen.findByText('Command copied.')).toBeTruthy();

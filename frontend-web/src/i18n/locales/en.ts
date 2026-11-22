@@ -75,7 +75,7 @@ export default {
       'Run these commands in a terminal after installing Claude Code. They use the server URL above, including its port.',
     registrationCommand: 'Register the remote MCP server',
     loginCommand: 'Start Claude Code sign-in',
-    approvalReturnHint: 'Open the printed URL, approve or cancel in VanillaMeta, then paste the full returned URL into the terminal.',
+    approvalReturnHint: 'Open the URL from the login command and approve the connection. When the browser confirms authentication, return to Claude Code. Paste the return URL only if the terminal asks for it.',
     copy: 'Copy',
     copied: 'Command copied.',
     copyError: 'Could not copy. Select the command text and copy it manually.',

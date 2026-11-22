@@ -74,7 +74,7 @@ export default {
     claudeHint: 'Claude Code를 설치한 터미널에서 아래 명령을 실행하세요. 서버 주소와 사용자 지정 포트를 그대로 사용합니다.',
     registrationCommand: '원격 MCP 서버 등록',
     loginCommand: 'Claude Code 로그인 시작',
-    approvalReturnHint: '출력된 주소를 열어 VanillaMeta에서 승인하거나 취소한 뒤, 브라우저의 전체 반환 주소를 터미널에 붙여 넣으세요.',
+    approvalReturnHint: '로그인 명령이 출력한 주소를 열고 연결을 승인하세요. 브라우저에 인증 완료가 표시되면 Claude Code로 돌아가세요. 터미널이 반환 주소를 요청할 때만 그곳에 붙여 넣으세요.',
     copy: '복사',
     copied: '명령을 복사했습니다.',
     copyError: '복사하지 못했습니다. 명령을 직접 선택해 복사하세요.',
