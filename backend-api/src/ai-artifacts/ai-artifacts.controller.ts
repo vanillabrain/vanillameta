@@ -1,4 +1,14 @@
-import { Body, Controller, Get, NotFoundException, Post, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Post,
+  ParseIntPipe,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiArtifactActor, AiArtifactsService } from './ai-artifacts.service';
 
@@ -13,7 +23,10 @@ function actorOf(request: AiArtifactRequest): AiArtifactActor {
 @UseGuards(JwtAuthGuard)
 @Controller('ai-artifacts')
 export class AiArtifactsController {
-  constructor(private readonly artifacts: AiArtifactsService, private readonly sharing: AiArtifactSharingService) {}
+  constructor(
+    private readonly artifacts: AiArtifactsService,
+    private readonly sharing: AiArtifactSharingService,
+  ) {}
 
   @Get()
   list(@Req() req: AiArtifactRequest) {
@@ -23,6 +36,20 @@ export class AiArtifactsController {
   @Get('received')
   received(@Req() req: AiArtifactRequest) {
     return this.sharing.list(actorOf(req).actorId);
+  }
+
+  @Get(':id/revisions')
+  history(@Req() req: AiArtifactRequest, @Param('id') id: string) {
+    return this.artifacts.revisions(actorOf(req), id);
+  }
+
+  @Get(':id/revisions/:revision')
+  version(
+    @Req() req: AiArtifactRequest,
+    @Param('id') id: string,
+    @Param('revision', ParseIntPipe) revision: number,
+  ) {
+    return this.artifacts.revision(actorOf(req), id, revision);
   }
 
   @Post(':id/share')

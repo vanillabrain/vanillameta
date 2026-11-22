@@ -1,3 +1,4 @@
+import { AddAiArtifactRevision1793560000000 } from './migrations/postgres/1793560000000-add-ai-artifact-revision';
 import { AiArtifactsModule } from './ai-artifacts/ai-artifacts.module';
 import { ArtifactsModule } from './artifacts/artifacts.module';
 import { AddFileArtifacts1793440000000 } from './migrations/1793440000000-add-file-artifacts';
@@ -163,6 +164,7 @@ import { PostgresBaseline1793500000000 } from './migrations/postgres/17935000000
               AddDocumentProvider1793530000000,
               AddDocumentShare1793540000000,
               AddAiArtifactShare1793550000000,
+              AddAiArtifactRevision1793560000000,
             ]
           : [
               AddFileArtifacts1793440000000,

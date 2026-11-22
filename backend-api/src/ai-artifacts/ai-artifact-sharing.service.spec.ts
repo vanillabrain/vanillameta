@@ -1,3 +1,4 @@
+import { AiArtifactRevision } from './ai-artifact-revision.entity';
 import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
@@ -10,7 +11,7 @@ import { AiArtifactsService } from './ai-artifacts.service';
 it('limits received charts to an explicit current grant and keeps authoring owner-only', async () => {
   const db = await new DataSource({
     type: 'sqlite', database: ':memory:', synchronize: true,
-    entities: [AiArtifact, AiArtifactShare, User, EnterpriseMembership],
+    entities: [AiArtifact, AiArtifactRevision, AiArtifactShare, User, EnterpriseMembership],
   }).initialize();
   try {
     const owner = await db.manager.save(User, { userId: 'author', email: 'owner@example.invalid', password: 'unused' });

@@ -1,3 +1,4 @@
+import { AiArtifactRevision } from './ai-artifact-revision.entity';
 import {
   BadRequestException,
   ConflictException,
@@ -130,6 +131,39 @@ export class AiArtifactsService {
     return { ...this.summary(row), content: row.content };
   }
 
+  async revisions(actor: AiArtifactActor, id: string) {
+    const current = await this.get(actor, id);
+    const history = await this.repository.manager.find(AiArtifactRevision, {
+      where: { artifactId: id },
+      select: { revision: true, updatedAt: true },
+      order: { revision: 'DESC' },
+    });
+    return {
+      revisions: [
+        { revision: current.revision, updatedAt: current.updatedAt },
+        ...history.filter(entry => entry.revision < current.revision),
+      ],
+    };
+  }
+
+  async revision(actor: AiArtifactActor, id: string, revision: number) {
+    const current = await this.get(actor, id);
+    if (current.revision === revision) return current;
+    const saved = await this.repository.manager.findOneBy(AiArtifactRevision, {
+      artifactId: id,
+      revision,
+    });
+    if (!saved) throw new NotFoundException();
+    return {
+      id,
+      kind: current.kind,
+      title: saved.title,
+      content: saved.content,
+      revision,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
   async update(
     actor: AiArtifactActor,
     input: { id: unknown; expectedRevision: unknown; title?: unknown; content?: unknown },
@@ -154,17 +188,30 @@ export class AiArtifactsService {
             `${current.kind} content`,
           ) as Record<string, unknown>);
     const updatedAt = new Date().toISOString();
-    const result = await this.repository
-      .createQueryBuilder()
-      .update()
-      .set({ title, content, revision: current.revision + 1, updatedAt })
-      .where('id = :id AND "ownerId" = :ownerId AND revision = :revision AND "deletedAt" IS NULL', {
-        id,
-        ownerId: actor.actorId,
-        revision: expectedRevision,
-      })
-      .execute();
-    if (!result.affected) throw new ConflictException('revision mismatch');
+    await this.repository.manager.transaction(async manager => {
+      const result = await manager
+        .getRepository(AiArtifact)
+        .createQueryBuilder()
+        .update()
+        .set({ title, content, revision: current.revision + 1, updatedAt })
+        .where(
+          'id = :id AND "ownerId" = :ownerId AND revision = :revision AND "deletedAt" IS NULL',
+          {
+            id,
+            ownerId: actor.actorId,
+            revision: expectedRevision,
+          },
+        )
+        .execute();
+      if (!result.affected) throw new ConflictException('revision mismatch');
+      await manager.insert(AiArtifactRevision, {
+        artifactId: id,
+        revision: current.revision,
+        title: current.title,
+        content: current.content,
+        updatedAt: current.updatedAt,
+      });
+    });
     return {
       ...this.summary({ ...current, title, content, revision: current.revision + 1, updatedAt }),
     };

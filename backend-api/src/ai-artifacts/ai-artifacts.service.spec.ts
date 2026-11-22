@@ -1,3 +1,4 @@
+import { AiArtifactRevision } from './ai-artifact-revision.entity';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AiArtifact } from './ai-artifact.entity';
@@ -12,7 +13,7 @@ describe('AI artifacts', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [AiArtifact],
+      entities: [AiArtifact, AiArtifactRevision],
       synchronize: true,
     }).initialize();
     service = new AiArtifactsService(db.getRepository(AiArtifact));
@@ -75,6 +76,14 @@ describe('AI artifacts', () => {
       content: { markdown: '# v2' },
     });
     expect(updated).toMatchObject({ id: created.id, revision: 2, title: 'Draft' });
+    expect((await service.revisions(owner, created.id)).revisions.map(row => row.revision)).toEqual(
+      [2, 1],
+    );
+    expect(await service.revision(owner, created.id, 1)).toMatchObject({
+      title: 'Draft',
+      content: { markdown: '# v1' },
+    });
+    await expect(service.revision(other, created.id, 1)).rejects.toBeInstanceOf(NotFoundException);
     expect((await service.get(owner, created.id)).content).toEqual({ markdown: '# v2' });
     await expect(
       service.update(owner, { id: created.id, expectedRevision: 1, title: 'stale' }),
