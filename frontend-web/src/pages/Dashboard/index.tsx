@@ -251,11 +251,11 @@ function Dashboard() {
     refetchOnWindowFocus: false,
   });
   const aiArtifactsQuery = useQuery({
-    queryKey: ['artifact-hub', 'ai-artifacts', authScope],
-    queryFn: ({ signal }) => aiArtifactService.list(signal),
-    enabled: authScope !== null && hubScope === 'mine' && view === 'active',
+    queryKey: ['artifact-hub', 'ai-artifacts', authScope, hubScope],
+    queryFn: ({ signal }) => hubScope === 'shared' ? aiArtifactService.received(signal) : aiArtifactService.list(signal),
+    enabled: authScope !== null && view === 'active',
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
   const supplementaryLoading =
     view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching || aiArtifactsQuery.isFetching);
@@ -425,7 +425,7 @@ function Dashboard() {
                 }
                 files={hubScope === 'mine' && view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
                 aiArtifacts={
-                  hubScope === 'mine' && view === 'active' && !aiArtifactsQuery.isError ? aiArtifactsQuery.data ?? [] : []
+                  view === 'active' && !aiArtifactsQuery.isError ? aiArtifactsQuery.data ?? [] : []
                 }
                 supplementaryLoading={supplementaryLoading}
                 supplementaryError={supplementaryError}

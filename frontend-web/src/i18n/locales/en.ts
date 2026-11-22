@@ -1,5 +1,14 @@
 export default {
   aiArtifact: {
+    shareTitle: 'Share with a teammate',
+    shareHint: 'The recipient can open the latest version under Shared with me.',
+    recipient: 'Recipient login ID',
+    grant: 'Share read access',
+    revoke: 'Revoke access',
+    granted: 'Shared with {{login}}.',
+    revoked: 'Revoked access for {{login}}.',
+    shareError: 'Could not save access. Check the login ID and organization.',
+    readOnly: 'Shared artifact · Read only',
     back: 'Artifacts',
     loading: 'Loading artifact…',
     error: 'This artifact cannot be opened. It was deleted or you do not have access.',

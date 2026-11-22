@@ -1,5 +1,14 @@
 export default {
   aiArtifact: {
+    shareTitle: '조직 구성원과 공유',
+    shareHint: '수신자는 허브의 공유받음에서 최신 버전을 읽을 수 있습니다.',
+    recipient: '수신자 로그인 ID',
+    grant: '읽기 권한 공유',
+    revoke: '공유 회수',
+    granted: '{{login}} 님에게 읽기 권한을 공유했습니다.',
+    revoked: '{{login}} 님의 공유를 회수했습니다.',
+    shareError: '공유 설정을 저장하지 못했습니다. 같은 조직의 로그인 ID인지 확인하세요.',
+    readOnly: '공유받은 아티팩트 · 읽기 전용',
     back: '아티팩트 목록',
     loading: '아티팩트를 불러오는 중…',
     error: '아티팩트를 열 수 없습니다. 삭제되었거나 접근 권한이 없습니다.',

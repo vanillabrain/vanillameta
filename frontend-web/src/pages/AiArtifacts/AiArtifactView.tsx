@@ -194,6 +194,39 @@ function Body({ artifact }: { artifact: AiArtifactDetail }) {
   return <ChartBody content={artifact.content} />;
 }
 
+function ShareChart({ id }: { id: string }) {
+  const { t } = useTranslation();
+  const [login, setLogin] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState('');
+  async function update(active: boolean) {
+    if (busy || !login.trim()) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await aiArtifactService.share(id, login.trim(), active);
+      setMessage(t(result.active ? 'aiArtifact.granted' : 'aiArtifact.revoked', { login: login.trim() }));
+    } catch {
+      setMessage(t('aiArtifact.shareError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <details className="rounded-xl border border-border bg-card p-4">
+    <summary className="cursor-pointer font-semibold">{t('aiArtifact.shareTitle')}</summary>
+    <p className="my-3 text-sm text-muted-foreground">{t('aiArtifact.shareHint')}</p>
+    <div className="flex flex-wrap items-end gap-2">
+      <label className="flex flex-col gap-1 text-sm">{t('aiArtifact.recipient')}
+        <input className="h-10 rounded-md border border-input bg-background px-3" value={login} disabled={busy}
+          onChange={event => { setLogin(event.target.value); setMessage(''); }} />
+      </label>
+      <Button disabled={busy || !login.trim()} onClick={() => update(true)}>{t('aiArtifact.grant')}</Button>
+      <Button variant="outline" disabled={busy || !login.trim()} onClick={() => update(false)}>{t('aiArtifact.revoke')}</Button>
+    </div>
+    <p role="status" className="mt-2 text-sm">{message}</p>
+  </details>;
+}
+
 export default function AiArtifactView() {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -208,7 +241,7 @@ export default function AiArtifactView() {
     },
     enabled: !!scope && !!id,
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
   return (
     <main className="mx-auto flex w-full min-w-0 max-w-[1280px] flex-col gap-6 p-4 sm:p-8 lg:p-12">
@@ -227,6 +260,8 @@ export default function AiArtifactView() {
           <p className="text-sm text-muted-foreground">
             {t('aiArtifact.revision')} {query.data.revision}
           </p>
+          {query.data.role === 'owner' && <ShareChart key={query.data.id} id={query.data.id} />}
+          {query.data.role === 'recipient' && <p>{t('aiArtifact.readOnly')}</p>}
           <Body artifact={query.data} />
         </>
       )}

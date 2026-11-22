@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { get } from '@/helpers/apiHelper';
+import { get, post } from '@/helpers/apiHelper';
 
 const summarySchema = z.object({
   id: z.string().uuid(),
@@ -8,7 +8,7 @@ const summarySchema = z.object({
   revision: z.number().int().positive(),
   updatedAt: z.string(),
 });
-const detailSchema = summarySchema.extend({ content: z.record(z.unknown()) });
+const detailSchema = summarySchema.extend({ role: z.enum(['owner', 'recipient']).optional(), content: z.record(z.unknown()) });
 
 export type AiArtifactSummary = z.infer<typeof summarySchema>;
 export type AiArtifactDetail = z.infer<typeof detailSchema>;
@@ -20,6 +20,12 @@ const artifactPath = (id: string) => `${root}/${z.string().uuid().parse(id)}`;
 export const aiArtifactService = {
   async list(signal?: AbortSignal): Promise<AiArtifactSummary[]> {
     return z.object({ items: z.array(summarySchema) }).parse((await get(root, undefined, { signal })).data).items;
+  },
+  async received(signal?: AbortSignal): Promise<AiArtifactSummary[]> {
+    return z.object({ items: z.array(summarySchema) }).parse((await get(root + '/received', undefined, { signal })).data).items;
+  },
+  async share(id: string, login: string, active: boolean) {
+    return z.object({ active: z.boolean() }).parse((await post(artifactPath(id) + '/share', { login, active })).data);
   },
   async detail(id: string, signal?: AbortSignal): Promise<AiArtifactDetail> {
     const detail = detailSchema.parse((await get(artifactPath(id), undefined, { signal })).data);

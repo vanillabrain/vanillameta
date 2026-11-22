@@ -140,7 +140,7 @@ export default function ArtifactLibrary({
     ...(scope === 'shared' ? [] : view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
     ...(scope === 'shared' ? [] : view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
-    ...(scope === 'shared' ? [] : view === 'active' ? aiArtifacts.map(item => ({ kind: 'ai' as const, item })) : []),
+    ...(view === 'active' ? aiArtifacts.map(item => ({ kind: 'ai' as const, item })) : []),
   ];
   const results = useMemo(() => {
     const text = normalized(query);
