@@ -33,8 +33,13 @@ async function run() {
       results.tutorial = page.url()
       await shot('02-tutorial')
       await page.waitForTimeout(1500)
-      for (const [index, name] of ['first-chart-consent', 'first-chart-updated'].entries()) {
-        const image = page.locator('.vp-doc img').filter({ visible: true }).nth(index)
+      const tutorial = await fs.readFile(path.resolve(__dirname, '../../../docs/user-manual/site/codex-first-chart.md'), 'utf8')
+      const expected = [...tutorial.matchAll(/!\[[^\]]*\]\(\.\.\/images\/([a-z0-9-]+)\.png\)/g)].map(match => match[1])
+      assert.ok(expected.includes('first-chart-consent') && expected.includes('first-chart-updated'))
+      assert.equal(await page.locator('.vp-doc img').count(), expected.length)
+      for (const [index, name] of expected.entries()) {
+        const image = page.locator('.vp-doc img[src$="/' + name + '.png"]')
+        assert.equal(await image.count(), 1)
         await image.scrollIntoViewIfNeeded()
         const info = await image.evaluate(async element => {
           await element.decode()

@@ -22,3 +22,9 @@ object's fallback link. A headless full-page screenshot may miss an HTML preview
 fold or a PDF plugin surface; scroll the iframe into view for a viewport capture and validate PDF
 through MIME, object presence, downloaded bytes, and SHA-256.
 
+
+## AI artifacts from an external host
+
+Use [the customer tutorial](../../../docs/user-manual/site/codex-first-chart.md) and two synthetic accounts in the same organization. Capture the host's two prompts, the returned ID and revision, and the two sets of **visible** numbers. Verify the recipient initially cannot open the URL, receives the latest version through the shared hub, and loses both direct and list access after revocation.
+
+For changes to version history, open an older URL, cancel and then confirm a restore on a separate document. Compare the archive and current contents in PostgreSQL. For source reuse, download the chosen historical JSON through the owner view and create a separate artifact in a fresh host conversation. Check the two IDs, the two chart values, and the absence of an inherited reader grant. For catalog changes, place the search target past the first 50 results and check both list scopes. Reuse unrelated prior results.

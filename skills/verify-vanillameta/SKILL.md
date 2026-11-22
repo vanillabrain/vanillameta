@@ -66,7 +66,7 @@ From the repository root, with the frontend Playwright dependencies and Chromium
 skills/verify-vanillameta/scripts/record-first-chart.cjs https://docs.vanillameta.net/ "../phase2-evidence/verify-$(date +%F)/guide-$(date +%H%M%S)"
 ```
 
-Use an absolute evidence directory when running from a nested worktree. The helper launches and closes a fresh browser, opens the contents, follows the tutorial link, decodes both PNGs and matches their bytes to this checkout. Keep the four PNGs, WebM and JSON together.
+Use an absolute evidence directory when running from a nested worktree. The helper launches and closes a fresh browser, opens the contents, follows the tutorial link, decodes each illustration declared in the tutorial and compares it to the matching release checkout. Keep the screenshots, WebM and JSON together. For a requested Ego run, use the same checks in the assigned Ego space.
 
 ## Gotchas
 
