@@ -93,6 +93,41 @@ describe('AI artifacts', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('restores as a new head and rejects stale, repeated and non-owner restores', async () => {
+    const { id } = await service.create(owner, 7, {
+      kind: 'document',
+      title: 'First',
+      content: { markdown: 'Initial' },
+    });
+    await service.update(owner, {
+      id,
+      expectedRevision: 1,
+      title: 'Second',
+      content: { markdown: 'Updated' },
+    });
+    await expect(service.restore(other, id, 1, { expectedRevision: 2 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    const restored = await service.restore(owner, id, 1, { expectedRevision: 2 });
+    expect(restored).toMatchObject({
+      id,
+      revision: 3,
+      title: 'First',
+      content: { markdown: 'Initial' },
+    });
+    await expect(service.restore(owner, id, 1, { expectedRevision: 2 })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    await expect(service.restore(owner, id, 3, { expectedRevision: 3 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect((await service.revisions(owner, id)).revisions.map(x => x.revision)).toEqual([3, 2, 1]);
+    expect(await service.revision(owner, id, 2)).toMatchObject({
+      title: 'Second',
+      content: { markdown: 'Updated' },
+    });
+  });
+
   it('deletes once and hides the artifact afterwards', async () => {
     const created = await service.create(owner, 7, {
       kind: 'html',

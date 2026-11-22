@@ -52,6 +52,16 @@ export class AiArtifactsController {
     return this.artifacts.revision(actorOf(req), id, revision);
   }
 
+  @Post(':id/revisions/:revision/restore')
+  restore(
+    @Req() req: AiArtifactRequest,
+    @Param('id') id: string,
+    @Param('revision', ParseIntPipe) revision: number,
+    @Body() body: unknown,
+  ) {
+    return this.artifacts.restore(actorOf(req), id, revision, body);
+  }
+
   @Get(':id/shares')
   recipients(@Req() req: AiArtifactRequest, @Param('id') id: string) {
     return this.sharing.recipients(actorOf(req).actorId, id);

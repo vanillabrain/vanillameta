@@ -164,6 +164,23 @@ export class AiArtifactsService {
     };
   }
 
+  async restore(actor: AiArtifactActor, id: string, revision: number, input: unknown) {
+    const { expectedRevision } = parse(
+      z.object({ expectedRevision: revisionSchema }).strict(),
+      input,
+      'restore',
+    );
+    const source = await this.revision(actor, id, revision);
+    if (revision >= expectedRevision) throw new BadRequestException('Choose a previous revision');
+    const head = await this.update(actor, {
+      id,
+      expectedRevision,
+      title: source.title,
+      content: source.content,
+    });
+    return { ...head, content: source.content, role: 'owner' as const };
+  }
+
   async update(
     actor: AiArtifactActor,
     input: { id: unknown; expectedRevision: unknown; title?: unknown; content?: unknown },

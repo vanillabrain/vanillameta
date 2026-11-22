@@ -1,7 +1,9 @@
 import React from 'react';
+import { RestoreRevision } from './RestoreRevision';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { Check, ChevronDown, History } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import { z } from 'zod';
 import { aiArtifactService, AiArtifactDetail } from '@/api/aiArtifactService';
@@ -289,10 +291,13 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
   const wanted = Number(value);
   const isPast = value !== null && wanted !== latest.revision;
   const valid = /^[1-9]\d*$/.test(value ?? '') && Number.isSafeInteger(wanted) && wanted < latest.revision;
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const toggle = React.useRef<HTMLButtonElement>(null);
+  const historyId = React.useId();
   const history = useQuery({
     queryKey: ['ai-artifact-history', scope, latest.id, latest.revision],
     queryFn: ({ signal }) => aiArtifactService.revisions(latest.id, signal),
-    enabled: latest.revision > 1,
+    enabled: historyOpen && latest.revision > 1,
     retry: false,
   });
   const previous = useQuery({
@@ -306,6 +311,8 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
     if (revision === String(latest.revision)) next.delete('revision');
     else next.set('revision', revision);
     setParams(next);
+    setHistoryOpen(false);
+    toggle.current?.focus();
   };
   const shown = isPast ? (valid && !previous.isError && !previous.isFetching ? previous.data : undefined) : latest;
   return (
@@ -319,35 +326,73 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
             </p>
           )}
         </div>
-        {!!history.data?.length && (
-          <label className="flex flex-col gap-1 text-sm">
+        {latest.revision > 1 && (
+          <Button
+            ref={toggle}
+            variant="outline"
+            aria-expanded={historyOpen}
+            aria-controls={historyId}
+            onClick={() => setHistoryOpen(open => !open)}
+          >
+            <History aria-hidden="true" className="size-4" />
             {t('aiArtifact.history')}
-            <select
-              className="h-10 rounded-md border border-input bg-background px-3"
-              value={value ?? latest.revision}
-              onChange={event => select(event.target.value)}
-            >
-              {isPast && !history.data.some(item => item.revision === wanted) && (
-                <option value={value ?? ''}>{t('aiArtifact.unavailableRevision')}</option>
-              )}
-              {history.data.map(item => (
-                <option key={item.revision} value={item.revision}>
-                  {t(item.revision === latest.revision ? 'aiArtifact.latestRevision' : 'aiArtifact.pastRevision', {
-                    revision: item.revision,
-                  })}
-                </option>
-              ))}
-            </select>
-          </label>
+            <ChevronDown aria-hidden="true" className={historyOpen ? 'size-4 rotate-180' : 'size-4'} />
+          </Button>
         )}
       </header>
-      {history.isError && (
-        <p role="alert">
-          {t('aiArtifact.historyError')}{' '}
-          <Button variant="outline" onClick={() => history.refetch()}>
-            {t('aiArtifact.retryHistory')}
-          </Button>
-        </p>
+      {historyOpen && (
+        <section
+          id={historyId}
+          aria-label={t('aiArtifact.history')}
+          className="max-h-64 overflow-y-auto rounded-lg border border-border bg-card p-2"
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              setHistoryOpen(false);
+              toggle.current?.focus();
+            }
+          }}
+        >
+          {history.isFetching && (
+            <p role="status" className="p-2 text-sm">
+              {t('aiArtifact.loading')}
+            </p>
+          )}
+          {history.isError && (
+            <p role="alert" className="p-2">
+              {t('aiArtifact.historyError')}{' '}
+              <Button variant="outline" onClick={() => history.refetch()}>
+                {t('aiArtifact.retryHistory')}
+              </Button>
+            </p>
+          )}
+          {!history.isError && !history.isFetching && (
+            <ul>
+              {history.data?.map(item => {
+                const current = item.revision === (value === null ? latest.revision : wanted);
+                return (
+                  <li key={item.revision}>
+                    <Button
+                      variant="ghost"
+                      className="h-auto min-h-10 w-full flex-wrap justify-start gap-2 px-3"
+                      aria-current={current ? 'true' : undefined}
+                      onClick={() => select(String(item.revision))}
+                    >
+                      <span>
+                        {t(item.revision === latest.revision ? 'aiArtifact.latestRevision' : 'aiArtifact.pastRevision', {
+                          revision: item.revision,
+                        })}
+                      </span>
+                      {current && <Check aria-hidden="true" className="size-4" />}
+                      <time className="ml-auto text-xs text-muted-foreground" dateTime={item.updatedAt}>
+                        {new Date(item.updatedAt).toLocaleString()}
+                      </time>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
       {isPast && (
         <Button className="self-start" variant="outline" onClick={() => select(String(latest.revision))}>
@@ -356,6 +401,21 @@ function OwnerView({ latest, scope }: { latest: AiArtifactDetail; scope: string 
       )}
       {isPast && valid && previous.isFetching && <p role="status">{t('aiArtifact.loading')}</p>}
       {isPast && (!valid || previous.isError) && <p role="alert">{t('aiArtifact.unavailableRevision')}</p>}
+      {isPast && shown && (
+        <RestoreRevision
+          key={latest.id + ':' + wanted + ':' + latest.revision}
+          id={latest.id}
+          revision={wanted}
+          expectedRevision={latest.revision}
+          scope={scope}
+          onRestored={() => {
+            const next = new URLSearchParams(params);
+            next.delete('revision');
+            setParams(next);
+            toggle.current?.focus();
+          }}
+        />
+      )}
       {!isPast && <ArtifactSharing id={latest.id} scope={scope} />}
       {shown && <Body artifact={shown} />}
     </>

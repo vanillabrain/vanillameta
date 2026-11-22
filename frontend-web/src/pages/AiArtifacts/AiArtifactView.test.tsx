@@ -7,7 +7,7 @@ import AiArtifactView from './AiArtifactView';
 import { aiArtifactService } from '@/api/aiArtifactService';
 
 vi.mock('@/api/aiArtifactService', () => ({
-  aiArtifactService: { detail: vi.fn(), revisions: vi.fn(), revision: vi.fn() },
+  aiArtifactService: { detail: vi.fn(), revisions: vi.fn(), revision: vi.fn(), restore: vi.fn() },
 }));
 vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: () => 'session-a' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -121,4 +121,21 @@ it('does not display the latest body as a missing old version', async () => {
   show('/ai-artifacts/' + id + '?revision=1');
   expect((await screen.findByRole('alert')).textContent).toContain('aiArtifact.unavailableRevision');
   expect(screen.queryByText('Latest body')).toBeNull();
+});
+
+it('requires confirmation, cancels without writing and reopens the newly restored head', async () => {
+  const earlier = { ...current, title: 'First title', revision: 1, content: { markdown: 'First body' } };
+  vi.mocked(aiArtifactService.detail).mockResolvedValue(current);
+  vi.mocked(aiArtifactService.revision).mockResolvedValue(earlier);
+  vi.mocked(aiArtifactService.restore).mockResolvedValue({ ...earlier, revision: 3 });
+  show('/ai-artifacts/' + id + '?revision=1');
+  await screen.findByText('First body');
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.restore' }));
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.cancelRestore' }));
+  expect(aiArtifactService.restore).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.restore' }));
+  fireEvent.click(screen.getByRole('button', { name: 'aiArtifact.confirmRestore' }));
+  await screen.findByText('aiArtifact.shareTitle');
+  expect(aiArtifactService.restore).toHaveBeenCalledExactlyOnceWith(id, 1, 2);
+  expect(screen.getByRole('heading', { name: 'First title' })).toBeTruthy();
 });

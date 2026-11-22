@@ -46,6 +46,17 @@ export const aiArtifactService = {
     if (detail.id !== id || detail.revision !== revision) throw new Error('Artifact revision mismatch');
     return detail;
   },
+  async restore(id: string, revision: number, expectedRevision: number): Promise<AiArtifactDetail> {
+    const response = await post(
+      artifactPath(id) + '/revisions/' + revision + '/restore',
+      { expectedRevision },
+      { _retry: true },
+    );
+    const detail = detailSchema.parse(response.data);
+    if (detail.id !== id || detail.revision !== expectedRevision + 1 || detail.role !== 'owner')
+      throw new Error('Artifact restore mismatch');
+    return detail;
+  },
   async detail(id: string, signal?: AbortSignal): Promise<AiArtifactDetail> {
     const detail = detailSchema.parse((await get(artifactPath(id), undefined, { signal })).data);
     if (detail.id !== id) throw new Error('Artifact mismatch');
