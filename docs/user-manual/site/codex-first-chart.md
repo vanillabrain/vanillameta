@@ -28,8 +28,8 @@ Codex 또는 Claude Code에 두 문장을 보내 지역별 매출 차트를 만�
 발표 환경에서는 **외부 AI 연결**의 **Claude Code 연결** 화면에서 **원격 MCP 서버 등록**과 **Claude Code 로그인 시작** 명령을 복사합니다. 별칭은 `vanillameta`이며 현재 프로젝트 범위에 등록됩니다. 시작과 조직 설정을 처음부터 하려면 [Docker에서 Claude 시연 준비](./customer-demo.md)를 먼저 따릅니다.
 
 ```sh
-claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta 'http://localhost:4000/v1/mcp'
-claude mcp login vanillameta
+claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:4000/v1/mcp'
+claude mcp login vanillameta --no-browser
 claude mcp get vanillameta
 ```
 
@@ -144,7 +144,7 @@ AI 아티팩트의 제목 검색은 처음 표시된 50개를 포함해 접근 �
 
 | 증상 | 고객이 할 일 |
 | --- | --- |
-| 승인 창을 닫았거나 연결 상태가 `Needs authentication`임 | Claude Code에서는 `claude mcp login vanillameta`, Codex에서는 `codex mcp login vanillameta`를 다시 실행한 뒤 브라우저에서 승인합니다. 승인 요청은 5분 뒤 만료되고 접근 토큰은 최대 10분 동안 유효합니다. |
+| 승인 창을 닫았거나 연결 상태가 `Needs authentication`임 | Claude Code에서는 `claude mcp login vanillameta --no-browser`, Codex에서는 `codex mcp login vanillameta`를 다시 실행한 뒤 브라우저에서 승인합니다. 승인 요청은 5분 뒤 만료되고 접근 토큰은 최대 10분 동안 유효합니다. |
 | 읽기 도구만 보임 | 승인 화면에서 **내 아티팩트 만들기·수정·삭제**를 선택합니다. 이미 연결했다면 이번 연결을 해제한 뒤 다시 승인합니다. |
 | `invalid_client` 또는 redirect URI 불일치 | 운영자에게 Codex가 출력한 callback의 host, 포트, 전체 path를 확인해 달라고 요청합니다. |
 | 401 또는 도구 목록이 비어 있음 | `codex mcp login vanillameta`로 이 MCP만 다시 인증합니다. `codex logout`은 Codex 로그인까지 해제하므로 사용하지 않습니다. |

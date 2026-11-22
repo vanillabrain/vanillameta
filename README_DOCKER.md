@@ -55,8 +55,8 @@ VM_WEB_PORT=3100 VM_API_PORT=4100 docker compose up --build -d --wait
 VanillaMeta에서 **내 아티팩트 → 먼저 시작하기 → 작업 공간 연결 → Claude 또는 외부 AI 연결**을 열거나 `http://localhost:3000/ai-connections`를 엽니다. **Claude Code 연결**의 **원격 MCP 서버 등록**과 **Claude Code 로그인 시작** 명령을 각각 **복사**해 실행합니다. 명령은 현재 프로젝트 범위와 별칭 `vanillameta`를 사용합니다.
 
 ```sh
-claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta 'http://localhost:4000/v1/mcp'
-claude mcp login vanillameta
+claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:4000/v1/mcp'
+claude mcp login vanillameta --no-browser
 claude mcp get vanillameta
 ```
 
@@ -82,7 +82,7 @@ docker compose logs --tail=200 postgres backend frontend
 - Claude 도구가 없으면 `/ai-connections`의 주소와 `claude mcp get vanillameta`를 확인합니다.
 - 승인 화면에 쓰기 권한이 없으면 **요청 취소** 후 등록 명령과 로그인 명령을 새로 실행합니다.
 - 조직 연결 코드가 만료됐거나 이미 사용됐다면 수신자가 새 코드를 발급합니다.
-- 수신자가 차트를 열지 못하면 조직 관계, **열람 가능한 구성원**, 소스 읽기 권한을 각각 확인합니다.
+- 수신자가 차트를 열지 못하면 소유자와 같은 조직인지, 수신자 로그인 ID가 **열람 가능한 구성원**에 있는지 확인합니다.
 - `revision mismatch`이면 새 차트를 만들지 말고 현재 차트를 다시 읽어 한 번만 수정합니다.
 
 ## 문서와 확인
@@ -101,3 +101,5 @@ VitePress 문서는 다음 명령으로 빌드하고 링크를 검사합니다.
 npm run docs:build
 npm --prefix docs/user-manual run check
 ```
+
+기본 Claude 연결은 아티팩트 읽기와 작성 범위를 요청합니다. 소스·문서 조회를 추가하는 관리자는 [원격 MCP 안내](./docs/user-manual/site/remote-mcp.md)를 참고해 클라이언트 허용 목록을 설정합니다. 원격 연결을 끄려면 `MCP_OAUTH_CLIENTS_JSON=`을 지정하고 Compose를 다시 실행합니다.

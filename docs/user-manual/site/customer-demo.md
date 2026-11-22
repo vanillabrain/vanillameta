@@ -8,7 +8,7 @@
 
 - `--wait`를 지원하는 Docker Compose v2와 Git
 - Claude Code를 실행할 터미널
-- 소유자와 수신자용 브라우저 프로필 두 개. 같은 브라우저의 일반 창과 시크릿 창을 함께 쓰지 않습니다.
+- 서로 다른 계정으로 로그인할 브라우저 세션 두 개. 별도 프로필 두 개 또는 일반 창과 시크릿 창을 준비합니다.
 - 기본값을 쓸 때 비어 있는 3000, 4000 포트
 
 ```sh
@@ -83,12 +83,12 @@ claude auth status
 **Claude Code 연결**에서 **원격 MCP 서버 등록**의 **복사**를 누르고 터미널에서 실행합니다. 이어서 **Claude Code 로그인 시작**도 복사해 실행합니다. 화면의 **서버가 제공한 MCP 주소**에는 현재 API 포트가 들어 있습니다.
 
 ```sh
-claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta 'http://localhost:4000/v1/mcp'
-claude mcp login vanillameta
+claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta --scope local 'http://localhost:4000/v1/mcp'
+claude mcp login vanillameta --no-browser
 claude mcp get vanillameta
 ```
 
-별칭은 `vanillameta`이며 명령은 현재 프로젝트 범위에 등록됩니다. 승인 화면에서 소유자 계정과 **VanillaMeta Demo** 조직을 확인하고 **내 아티팩트 읽기**와 **내 아티팩트 만들기·수정·삭제**를 모두 선택한 뒤 **연결 승인**을 누릅니다. `claude mcp get vanillameta`에서 **Connected**를 확인합니다.
+로그인 명령이 출력한 URL을 소유자가 로그인한 브라우저에서 엽니다. 별칭 `vanillameta`는 명령을 실행한 프로젝트에서 사용합니다. 승인 화면에서 소유자 계정과 **VanillaMeta Demo** 조직을 확인하고 **내 아티팩트 읽기**와 **내 아티팩트 만들기·수정·삭제**를 모두 선택한 뒤 **연결 승인**을 누릅니다. `claude mcp get vanillameta`에서 **Connected**를 확인합니다.
 
 승인 요청은 5분 뒤 만료되고 접근 토큰은 최대 10분 동안 유효합니다. **요청 취소**는 `access_denied`를 반환하고 연결을 만들지 않습니다.
 
@@ -122,10 +122,12 @@ docker compose up --build -d --wait
 | 웹은 열리지만 API가 응답하지 않음 | 현재 포트의 `/v1/health`를 확인하고 사용자 지정 포트를 지정한 터미널에서 명령을 실행했는지 확인합니다. |
 | Claude 도구가 보이지 않음 | **외부 AI 연결**의 서버 주소, `claude mcp get vanillameta`, **Connected** 상태를 확인합니다. `Needs authentication`이면 **Claude Code 로그인 시작** 명령을 다시 실행합니다. |
 | 승인 화면에 쓰기 권한이 없음 | 승인으로 권한을 추가할 수 없습니다. **요청 취소** 후 등록 명령을 다시 복사하고 쓰기 범위를 요청하는 설정으로 새 로그인을 시작합니다. |
-| 승인 요청이 만료됨 | `claude mcp login vanillameta`로 새 로그인을 시작합니다. |
+| 승인 요청이 만료됨 | `claude mcp login vanillameta --no-browser`로 새 로그인을 시작합니다. |
 | 조직 연결 코드가 거절됨 | 수신자가 같은 조직 번호로 코드를 새로 발급하고 소유자는 15분 안에 새 코드를 한 번 사용합니다. |
-| 수신자가 차트를 못 엶 | 현재 조직, **열람 가능한 구성원**, 필요한 소스 읽기 권한을 각각 확인합니다. |
+| 수신자가 차트를 못 엶 | 수신자가 같은 조직의 계정으로 로그인했는지 확인한 뒤, 소유자 화면의 **열람 가능한 구성원**에서 수신자의 로그인 ID를 확인합니다. |
 | `revision mismatch` | 현재 차트를 다시 읽고 최신 리비전으로 같은 수정을 한 번만 요청합니다. |
+
+다른 포트의 설치본으로 바꾼 뒤 같은 별칭이 이미 등록됐다고 나오면, 먼저 `claude mcp get vanillameta`로 URL을 확인합니다. 새 Claude 프로젝트 폴더에서 현재 화면의 등록 명령을 실행하면 두 설치본을 따로 사용할 수 있습니다.
 
 ## 검증 순서 {#verification}
 
