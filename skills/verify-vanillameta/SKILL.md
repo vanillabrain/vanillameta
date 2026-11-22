@@ -47,7 +47,8 @@ enrollment tokens out of evidence files.
 
 ## Evidence
 
-Write to `phase2-evidence/verify-<date>/`: screenshots for UI, JSON or terminal output for API.
+Use a fresh run directory under `phase2-evidence/verify-<date>/`. For each independent result save a readable PNG of the observed state. For a CLI/API-only result capture the sanitized terminal result and retain its structured output. For a journey start continuous video before the first action and stop after the observable outcome. Use a fresh browser profile with synthetic data. Keep passwords, tokens and authorization query strings outside the recording. Capture separate safe segments if credentials interrupt a journey and label the gap.
+Link the PNGs and playable video in the report alongside the case, build, environment and actual outcome. Check the images open and play or decode the video after closing the recorder. Retain failed attempts separately. If media is missing, distinguish the behavioral result from incomplete evidence.
 Prove the action and the resulting state. Record HTTP status and response body, not just
 "it worked". Capture 390, 768, and 1440 widths and compare `document.documentElement.scrollWidth`
 with `clientWidth`; a full-page screenshot alone can hide horizontal overflow because it expands
@@ -59,7 +60,13 @@ Stop the two dev sessions started above. Keep the evidence directory.
 
 ## Helpers
 
-None yet. Keep scripts in this directory and document their invocation here.
+From the repository root, with the frontend Playwright dependencies and Chromium installed, record the public help journey using a new evidence directory:
+
+```sh
+skills/verify-vanillameta/scripts/record-first-chart.cjs https://docs.vanillameta.net/ "../phase2-evidence/verify-$(date +%F)/guide-$(date +%H%M%S)"
+```
+
+Use an absolute evidence directory when running from a nested worktree. The helper launches and closes a fresh browser, opens the contents, follows the tutorial link, decodes both PNGs and matches their bytes to this checkout. Keep the four PNGs, WebM and JSON together.
 
 ## Gotchas
 
