@@ -1,5 +1,6 @@
 export default {
   aiArtifact: {
+    loadMore: 'Load more AI artifacts',
     history: 'Version history',
     latestRevision: 'Version {{revision}} · Latest',
     pastRevision: 'Version {{revision}} · Previous',
@@ -199,6 +200,7 @@ export default {
     recent: 'Recently modified',
     name: 'Name',
     reset: 'Reset filters',
+    loadedCount: '{{shown}} matches among {{total}} loaded artifacts. More are available.',
     count: '{{shown}} of {{total}} artifacts',
     empty: 'No artifacts match. Change your search or type, or reset the filters.',
     open: 'Open',

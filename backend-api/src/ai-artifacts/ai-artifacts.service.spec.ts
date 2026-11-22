@@ -128,6 +128,40 @@ describe('AI artifacts', () => {
     });
   });
 
+  it('pages tied timestamps without gaps and searches older owned titles literally', async () => {
+    const actor = { actorId: 400 };
+    const ids = Array.from(
+      { length: 54 },
+      (_, index) => 'abcd0000-0000-4000-8000-' + index.toString(16).padStart(12, '0'),
+    );
+    for (const [i, id] of ids.entries()) {
+      await db.manager.insert(AiArtifact, {
+        id,
+        ownerId: actor.actorId,
+        organizationId: 7,
+        kind: 'document',
+        revision: 1,
+        title: i === 0 ? 'Revenue 100%_done' : 'Revenue ' + i,
+        content: { markdown: 'Private' },
+        updatedAt: '2026-11-22T01:00:00.000Z',
+        createdAt: '2026-11-22T01:00:00.000Z',
+        deletedAt: null,
+      });
+    }
+    const first = await service.list(actor);
+    const last = await service.list(actor, { cursor: first.nextCursor });
+    expect(first.items).toHaveLength(50);
+    expect(last.nextCursor).toBeNull();
+    expect([...first.items, ...last.items].map(row => row.id)).toEqual(ids.reverse());
+    const matched = await service.list(actor, { query: '100%_DONE' });
+    expect(matched.items).toHaveLength(1);
+    expect(matched.items[0]).not.toHaveProperty('content');
+    expect((await service.list(other, { query: '100%_done' })).items).toEqual([]);
+    await expect(service.list(actor, { cursor: 'invalid' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('deletes once and hides the artifact afterwards', async () => {
     const created = await service.create(owner, 7, {
       kind: 'html',

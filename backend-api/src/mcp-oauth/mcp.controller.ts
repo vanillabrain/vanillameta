@@ -1,3 +1,4 @@
+import { artifactPageInput } from '../ai-artifacts/ai-artifact-page';
 import { All, Controller, Get, Header, HttpException, Req, Res, Module } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -146,11 +147,11 @@ export class McpController {
       server.registerTool(
         'vm_list_artifacts',
         {
-          description: 'List your own artifacts with their ids, kinds and revisions.',
-          inputSchema: z.object({}).strict(),
+          description: 'Find your artifacts by title. Pass nextCursor as cursor with the same query to read the next page.',
+          inputSchema: artifactPageInput,
           annotations: { readOnlyHint: true, destructiveHint: false },
         },
-        async () => safe(() => this.artifacts.list({ actorId: principal.actorId })),
+        async input => safe(() => this.artifacts.list({ actorId: principal.actorId }, input)),
       );
       server.registerTool(
         'vm_get_artifact',

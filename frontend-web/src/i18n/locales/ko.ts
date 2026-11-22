@@ -1,5 +1,6 @@
 export default {
   aiArtifact: {
+    loadMore: 'AI 아티팩트 더 보기',
     history: '버전 기록',
     latestRevision: '버전 {{revision}} · 최신',
     pastRevision: '버전 {{revision}} · 이전',
@@ -194,6 +195,7 @@ export default {
     recent: '최근 수정순',
     name: '이름순',
     reset: '검색 조건 초기화',
+    loadedCount: '불러온 {{total}}개 중 {{shown}}개 · 더 불러올 수 있습니다.',
     count: '전체 {{total}}개 중 {{shown}}개',
     empty: '조건에 맞는 산출물이 없습니다. 검색어나 유형을 바꾸거나 검색 조건을 초기화해 주세요.',
     open: '열기',

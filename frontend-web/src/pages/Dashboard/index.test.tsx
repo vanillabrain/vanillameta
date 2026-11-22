@@ -24,7 +24,13 @@ const api = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 const starter = vi.hoisted(() => ({ enabled: false }));
-vi.mock('@/helpers/apiHelper', () => ({ get: api.get, put: api.put, del: api.del, post: api.post }));
+const assetListGet = vi.hoisted(() => vi.fn());
+vi.mock('@/helpers/apiHelper', () => ({
+  get: (path: string, ...args: unknown[]) =>
+    ['/documents', '/artifacts/files', '/ai-artifacts', '/ai-artifacts/received'].includes(path)
+      ? assetListGet(path, ...args) : api.get(path, ...args),
+  put: api.put, del: api.del, post: api.post,
+}));
 vi.mock('@/contexts/AlertContext', () => ({ SnackbarContext: {} }));
 vi.mock('@/components/loading', () => ({
   Loading: ({ in: loading }: any) => (loading ? <div role="progressbar" /> : null),
@@ -35,10 +41,10 @@ vi.mock('react-i18next', async () => {
   return {
     useTranslation: () => ({
       t: (key: string, values: Record<string, string | number> = {}) => {
-        const text = key.startsWith('artifact.')
-          ? Object.entries(ko.artifact).find(([name]) => name === key.slice(9))?.[1] ?? key
-          : key;
-        return text.replace(/\{\{(\w+)\}\}/g, (_, name) => String(values[name] ?? ''));
+        const [group, name] = key.split('.');
+        const messages = group === 'artifact' ? ko.artifact : group === 'aiArtifact' ? ko.aiArtifact : {};
+        const text = Object.entries(messages).find(([entry]) => entry === name)?.[1] ?? key;
+        return String(text).replace(/\{\{(\w+)\}\}/g, (_, name) => String(values[name] ?? ''));
       },
     }),
   };
@@ -145,6 +151,9 @@ beforeEach(() => {
   sessionStorage.clear();
   setToken(TOKEN_A);
   localStorage.setItem(AUTH_META, JSON.stringify({ epoch: SESSION_A }));
+  assetListGet.mockImplementation(async (path: string) => ({
+    data: path === '/documents' ? { configured: false, organizationId: 7, documents: [] } : { items: [], nextCursor: null },
+  }));
   api.get.mockImplementation(async (path, params) => {
     if (path === '/dashboard/28/delete-impact')
       return response({
@@ -783,10 +792,12 @@ it('loads owner AI artifacts into the searchable hub and reopens them with the c
     revision: 3,
     updatedAt: '2026-11-22T00:00:00.000Z',
   };
-  api.get.mockImplementation(async (path, params) => {
-    if (path === '/ai-artifacts') return { data: { items: [aiArtifact] } };
-    if (path === '/dashboard/library') return library(params.view);
-    throw new Error('unexpected request');
+  assetListGet.mockImplementation(async (path, params) => {
+    if (path === '/ai-artifacts') {
+      expect(params.query).toBe('quarterly');
+      return { data: { items: [aiArtifact], nextCursor: null } };
+    }
+    return {data: path === '/documents' ? {configured: false, organizationId: 7, documents: []} : {items: []}};
   });
   show('/dashboard?artifactQuery=quarterly&artifactKind=ai&artifactDisplay=grid');
   const link = await screen.findByRole('link', { name: 'Quarterly revenue' });
@@ -797,6 +808,28 @@ it('loads owner AI artifacts into the searchable hub and reopens them with the c
     kind: 'ai',
     display: 'grid',
   });
+});
+
+it('fetches the next AI artifact page with the same search and scope', async () => {
+  const row = { id: '33333333-3333-4333-8333-333333333333', title: 'Report one', kind: 'document',
+    revision: 1, updatedAt: '2026-11-22T00:00:00.000Z' };
+  assetListGet.mockImplementation(async (path, params) => {
+    if (path === '/ai-artifacts/received') {
+      expect(params.query).toBe('Report');
+      if (params.cursor) {
+        expect(params.cursor).toBe('next-page');
+        return { data: { items: [{ ...row, id: '44444444-4444-4444-8444-444444444444', title: 'Report two' }], nextCursor: null } };
+      }
+      return { data: { items: [row], nextCursor: 'next-page' } };
+    }
+    return { data: path === '/documents' ? { configured: false, organizationId: 7, documents: [] } : { items: [] } };
+  });
+  show('/dashboard?artifactScope=shared&artifactQuery=Report&artifactKind=ai');
+  await screen.findByRole('link', { name: 'Report one' });
+  click('AI 아티팩트 더 보기');
+  await screen.findByRole('link', { name: 'Report two' });
+  expect(screen.getByRole('link', { name: 'Report one' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'AI 아티팩트 더 보기' })).toBeNull();
 });
 
 it('keeps the active sample preparation through a library reload', async () => {

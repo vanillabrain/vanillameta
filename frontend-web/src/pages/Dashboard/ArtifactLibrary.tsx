@@ -64,6 +64,7 @@ export default function ArtifactLibrary({
   documents = [],
   files = [],
   aiArtifacts = [],
+  aiHasMore = false,
   deliveries = [],
   scope = 'mine',
   reportBoundary,
@@ -87,6 +88,7 @@ export default function ArtifactLibrary({
   documents?: DocumentSummary[];
   files?: FileArtifactSummary[];
   aiArtifacts?: AiArtifactSummary[];
+  aiHasMore?: boolean;
   deliveries?: ReceivedDashboard[];
   scope?: 'mine' | 'shared';
   reportBoundary?: React.RefObject<HTMLDivElement>;
@@ -278,7 +280,7 @@ export default function ArtifactLibrary({
         </Button>
       </div>
       <p role="status" className="mt-3 text-xs text-muted-foreground">
-        {t('artifact.count', { total: rows.length, shown: results.length })}
+        {t(aiHasMore ? 'artifact.loadedCount' : 'artifact.count', { total: rows.length, shown: results.length })}
       </p>
       <div
         ref={boundary}

@@ -1,3 +1,4 @@
+import { artifactPage } from './ai-artifact-page';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
 import { z } from 'zod';
@@ -34,11 +35,8 @@ export class AiArtifactSharingService {
     return { recipients };
   }
 
-  async list(actorId: number) {
-    const items = await this.received(actorId)
-      .select(['artifact.id','artifact.title','artifact.kind','artifact.revision','artifact.updatedAt'])
-      .orderBy('artifact.updatedAt', 'DESC').take(50).getMany();
-    return { items };
+  async list(actorId: number, input: unknown = {}) {
+    return artifactPage(this.received(actorId), input);
   }
 
   async read(actorId: number, id: string) {

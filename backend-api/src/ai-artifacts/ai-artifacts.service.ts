@@ -1,3 +1,4 @@
+import { artifactPage } from './ai-artifact-page';
 import { AiArtifactRevision } from './ai-artifact-revision.entity';
 import {
   BadRequestException,
@@ -111,13 +112,11 @@ export class AiArtifactsService {
     return this.summary(row);
   }
 
-  async list(actor: AiArtifactActor) {
-    const rows = await this.repository.find({
-      where: { ownerId: actor.actorId, deletedAt: IsNull() },
-      order: { updatedAt: 'DESC' },
-      take: 50,
-    });
-    return { items: rows.map(row => this.summary(row)) };
+  async list(actor: AiArtifactActor, input: unknown = {}) {
+    const owned = this.repository
+      .createQueryBuilder('artifact')
+      .where('artifact.ownerId = :actor AND artifact.deletedAt IS NULL', { actor: actor.actorId });
+    return artifactPage(owned, input);
   }
 
   async get(actor: AiArtifactActor, id: string) {

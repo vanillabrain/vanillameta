@@ -21,12 +21,11 @@ const root = '/ai-artifacts';
 const artifactPath = (id: string) => `${root}/${z.string().uuid().parse(id)}`;
 
 export const aiArtifactService = {
-  async list(signal?: AbortSignal): Promise<AiArtifactSummary[]> {
-    return z.object({ items: z.array(summarySchema) }).parse((await get(root, undefined, { signal })).data).items;
-  },
-  async received(signal?: AbortSignal): Promise<AiArtifactSummary[]> {
-    return z.object({ items: z.array(summarySchema) }).parse((await get(root + '/received', undefined, { signal })).data)
-      .items;
+  async page(scope: 'mine' | 'shared', query: string, cursor: string | null, signal?: AbortSignal) {
+    const path = scope === 'shared' ? root + '/received' : root;
+    const params = { ...(query && { query }), ...(cursor && { cursor }) };
+    const response = await get(path, params, { signal });
+    return z.object({ items: z.array(summarySchema), nextCursor: z.string().nullish() }).parse(response.data);
   },
   async recipients(id: string, signal?: AbortSignal) {
     const result = await get(artifactPath(id) + '/shares', undefined, { signal });

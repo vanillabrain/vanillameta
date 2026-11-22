@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Param,
   Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,13 +30,21 @@ export class AiArtifactsController {
   ) {}
 
   @Get()
-  list(@Req() req: AiArtifactRequest) {
-    return this.artifacts.list(actorOf(req));
+  list(
+    @Req() req: AiArtifactRequest,
+    @Query('query') query?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.artifacts.list(actorOf(req), { query, cursor });
   }
 
   @Get('received')
-  received(@Req() req: AiArtifactRequest) {
-    return this.sharing.list(actorOf(req).actorId);
+  received(
+    @Req() req: AiArtifactRequest,
+    @Query('query') query?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.sharing.list(actorOf(req).actorId, { query, cursor });
   }
 
   @Get(':id/revisions')

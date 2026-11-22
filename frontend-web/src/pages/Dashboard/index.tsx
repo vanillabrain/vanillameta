@@ -13,7 +13,7 @@ import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus, Plug } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -260,13 +260,26 @@ function Dashboard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const aiArtifactsQuery = useQuery({
-    queryKey: ['artifact-hub', 'ai-artifacts', authScope, hubScope],
-    queryFn: ({ signal }) => hubScope === 'shared' ? aiArtifactService.received(signal) : aiArtifactService.list(signal),
-    enabled: authScope !== null && view === 'active',
+  const showAiPages = view === 'active' && [null, 'all', 'ai'].includes(searchParams.get('artifactKind'));
+  const titleSearch = (searchParams.get('artifactQuery') ?? '').slice(0, 200).trim();
+  const [settledSearch, setSettledSearch] = useState(titleSearch);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledSearch(titleSearch), 250);
+    return () => clearTimeout(timer);
+  }, [titleSearch]);
+  const aiArtifactsQuery = useInfiniteQuery({
+    queryKey: ['artifact-hub', 'ai-artifacts', authScope, hubScope, settledSearch],
+    queryFn: ({ signal, pageParam }) => aiArtifactService.page(hubScope, settledSearch, pageParam, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: page => page.nextCursor ?? undefined,
+    enabled: authScope !== null && view === 'active' && settledSearch === titleSearch,
     retry: false,
     refetchOnWindowFocus: true,
   });
+  const aiRows = React.useMemo(() => {
+    const rows = aiArtifactsQuery.data?.pages.flatMap(page => page.items) ?? [];
+    return Array.from(new Map(rows.map(row => [row.id, row])).values());
+  }, [aiArtifactsQuery.data]);
   const supplementaryLoading =
     view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching || aiArtifactsQuery.isFetching);
   const supplementaryError =
@@ -435,9 +448,10 @@ function Dashboard() {
                 }
                 files={hubScope === 'mine' && view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
                 aiArtifacts={
-                  view === 'active' && !aiArtifactsQuery.isError ? aiArtifactsQuery.data ?? [] : []
+                  view === 'active' && !aiArtifactsQuery.isError ? aiRows : []
                 }
                 supplementaryLoading={supplementaryLoading}
+                aiHasMore={showAiPages && aiArtifactsQuery.hasNextPage}
                 supplementaryError={supplementaryError}
                 onDelete={hubScope === 'shared' ? () => undefined : handleDeleteSelect}
                 view={view}
@@ -451,6 +465,16 @@ function Dashboard() {
                 archiveError={archiveError || (needsRead && !archiveBusy ? t('artifact.needsRead') : '')}
                 busy={archiveBusy}
               />
+              {showAiPages && aiArtifactsQuery.hasNextPage && (
+                <Button
+                  variant="outline"
+                  className="mt-3"
+                  disabled={aiArtifactsQuery.isFetching || settledSearch !== titleSearch}
+                  onClick={() => aiArtifactsQuery.fetchNextPage()}
+                >
+                  {t('aiArtifact.loadMore')}
+                </Button>
+              )}
               {hubScope === 'shared' && (
                 <div className="mt-4 flex min-w-0 flex-wrap items-center gap-3">
                   {receivedBusy && <p role="status">{t('artifact.loading')}</p>}
