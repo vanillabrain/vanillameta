@@ -3,6 +3,11 @@ import { fileURLToPath } from "node:url";
 
 const groups = [
   {
+    text: "설치·시연 준비",
+    collapsed: false,
+    items: [["Docker에서 Claude 시작", "customer-demo"]],
+  },
+  {
     text: "아티팩트 시작하기",
     collapsed: false,
     items: [
@@ -112,6 +117,7 @@ export default defineConfig({
   themeConfig: {
     siteTitle: "VanillaMeta · 사용 가이드",
     nav: [
+      { text: "시연 준비", link: "/customer-demo" },
       { text: "시작하기", link: "/agent-artifacts" },
       { text: "전체 안내", link: "/contents" },
       { text: "문제 해결", link: "/troubleshooting" },

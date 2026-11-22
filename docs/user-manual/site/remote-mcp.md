@@ -76,12 +76,18 @@ AI 아티팩트 종류는 `html`, `document`, `sheet`, `chart`입니다. 차트�
 | `revision mismatch` | 아티팩트를 다시 읽고 최신 revision으로 수정합니다. |
 | 다른 계정에도 아티팩트가 보임 | 발표를 멈추고 로그인 계정과 연결 조직을 확인합니다. |
 
-## 격리 Compose 실행
+## 기본 Compose 실행
 
-발표 환경은 저장소 루트의 기본 Compose와 발표용 overlay를 함께 실행합니다. 이 프로젝트 이름으로 만든 컨테이너와 볼륨만 사용합니다.
+발표 환경은 저장소 루트에서 기본 Compose를 실행합니다. 웹은 `http://localhost:3000`, API와 원격 MCP는 `http://localhost:4000`에서 열립니다.
 
 ```sh
-docker compose -p vm-demo1123 -f docker-compose.yml -f compose.demo.yml up -d --build --wait
+docker compose up --build -d --wait
+```
+
+3000 또는 4000 포트가 사용 중이면 `VM_WEB_PORT`와 `VM_API_PORT`를 명령 앞에 지정합니다. 같은 변수를 지정한 상태에서 같은 명령을 다시 실행하면 이미지도 갱신됩니다.
+
+```sh
+VM_WEB_PORT=3100 VM_API_PORT=4100 docker compose up --build -d --wait
 ```
 
 도움말은 별도로 빌드하고 미리 봅니다.
@@ -91,8 +97,8 @@ npm run docs:build
 npm --prefix docs/user-manual run preview -- --host 127.0.0.1 --port 4174
 ```
 
-발표 뒤 같은 두 Compose 파일과 프로젝트 이름으로 `down`을 실행합니다.
+발표 뒤 컨테이너를 내립니다. 볼륨과 시연 자료는 남습니다.
 
 ```sh
-docker compose -p vm-demo1123 -f docker-compose.yml -f compose.demo.yml down
+docker compose down
 ```

@@ -25,12 +25,12 @@ Codex 또는 Claude Code에 두 문장을 보내 지역별 매출 차트를 만�
 
 ### Claude Code
 
-발표 환경에서는 새 MCP 항목을 로컬 범위로 등록합니다.
+발표 환경에서는 **외부 AI 연결**의 **Claude Code 연결** 화면에서 **원격 MCP 서버 등록**과 **Claude Code 로그인 시작** 명령을 복사합니다. 별칭은 `vanillameta`이며 현재 프로젝트 범위에 등록됩니다. 시작과 조직 설정을 처음부터 하려면 [Docker에서 Claude 시연 준비](./customer-demo.md)를 먼저 따릅니다.
 
 ```sh
-claude mcp add --scope local --transport http --client-id claude-code --callback-port 53683 vm-presentation http://localhost:4000/v1/mcp
-claude mcp login --no-browser vm-presentation
-claude mcp get vm-presentation
+claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta 'http://localhost:4000/v1/mcp'
+claude mcp login vanillameta
+claude mcp get vanillameta
 ```
 
 로그인 명령이 출력한 URL을 이미 로그인한 브라우저에서 열고 **연결 승인**을 누릅니다. 마지막 명령에서 `Status: Connected`를 확인합니다.
@@ -144,7 +144,7 @@ AI 아티팩트의 제목 검색은 처음 표시된 50개를 포함해 접근 �
 
 | 증상 | 고객이 할 일 |
 | --- | --- |
-| 승인 창을 닫았거나 연결 상태가 `Needs authentication`임 | Claude Code에서는 `claude mcp login --no-browser vm-presentation`, Codex에서는 `codex mcp login vanillameta`를 다시 실행한 뒤 브라우저에서 승인합니다. 이 발표 서버의 접근 토큰 유효시간은 10분입니다. |
+| 승인 창을 닫았거나 연결 상태가 `Needs authentication`임 | Claude Code에서는 `claude mcp login vanillameta`, Codex에서는 `codex mcp login vanillameta`를 다시 실행한 뒤 브라우저에서 승인합니다. 승인 요청은 5분 뒤 만료되고 접근 토큰은 최대 10분 동안 유효합니다. |
 | 읽기 도구만 보임 | 승인 화면에서 **내 아티팩트 만들기·수정·삭제**를 선택합니다. 이미 연결했다면 이번 연결을 해제한 뒤 다시 승인합니다. |
 | `invalid_client` 또는 redirect URI 불일치 | 운영자에게 Codex가 출력한 callback의 host, 포트, 전체 path를 확인해 달라고 요청합니다. |
 | 401 또는 도구 목록이 비어 있음 | `codex mcp login vanillameta`로 이 MCP만 다시 인증합니다. `codex logout`은 Codex 로그인까지 해제하므로 사용하지 않습니다. |
@@ -188,10 +188,10 @@ MCP_OAUTH_CLIENTS_JSON='[{"id":"codex","name":"Codex","redirectUris":["http://lo
 발표용 서버는 저장소 루트에서 다음 명령으로 시작합니다. 처음 시작하면 웹은 `http://localhost:3000`, MCP는 `http://localhost:4000/v1/mcp`에서 열립니다.
 
 ```sh
-docker compose -p vm-demo1123 -f docker-compose.yml -f compose.demo.yml up -d --build --wait
+docker compose up --build -d --wait
 ```
 
-처음 시작한 서버에서는 시연 계정으로 로그인하고 계정 메뉴의 **조직·직원** 화면에서 `VanillaMeta Demo`를 입력한 뒤 **조직 만들기**를 누릅니다. 이미 소속 조직이 있으면 승인 화면에 표시된 조직을 사용합니다. 공유를 시연할 동료는 같은 조직에 참여한 별도 계정이어야 합니다.
+처음 시작한 서버에서는 시연 계정으로 로그인하고 계정 메뉴의 **조직·직원** 화면에서 `VanillaMeta Demo`를 입력한 뒤 **조직 만들기**를 누릅니다. 이미 소속 조직이 있으면 승인 화면에 표시된 조직을 사용합니다. 공유를 시연할 동료는 [조직에 동료 추가하기](./organization.md#add-colleague)에 따라 같은 조직에 참여시킵니다.
 :::
 
 ## 다음 단계

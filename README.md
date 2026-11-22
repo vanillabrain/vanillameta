@@ -21,7 +21,7 @@ If you need a dashboard engine you can drop into your own product or internal to
 
 ## User guide
 
-데이터 연결부터 AI 분석 생성·수정·저장·게시·공유까지는 [온라인 사용자 가이드](https://docs.vanillameta.net/) 또는 [저장소 가이드](docs/user-manual/README.md)를 참고하세요. 처음이라면 [샘플로 시작하기](docs/user-manual/빠른_시작_가이드.md)를 따라 할 수 있습니다.
+데이터 연결부터 AI 분석 생성·수정·저장·게시·공유까지는 [온라인 사용자 가이드](https://docs.vanillameta.net/) 또는 [저장소 가이드](docs/user-manual/README.md)를 참고하세요. Docker 설치와 Claude 시연은 [고객 시연 준비](docs/user-manual/site/customer-demo.md) 및 [Docker 안내](README_DOCKER.md)를 따릅니다. 처음이라면 [샘플로 시작하기](docs/user-manual/빠른_시작_가이드.md)를 따라 할 수 있습니다.
 
 검색·기능별 상세 목차를 갖춘 VitePress 문서는 `npm --prefix docs/user-manual ci` 후 `npm run docs:dev`로 실행합니다. [전체 목차](docs/user-manual/site/contents.md)와 [실행 방법](docs/user-manual/README.md#상세-문서-사이트)을 참고하세요.
 
@@ -30,10 +30,12 @@ If you need a dashboard engine you can drop into your own product or internal to
 Local development and CI use **Node.js 24 LTS** (`nvm use`, or install Node 24.11+). The dashboard Assistant uses AI SDK 7 (`@ai-sdk/react` 4) and the existing Codex CLI connection to `gpt-6-luna`. Configuration and supported runtime limits are in [the Assistant verification guide](docs/testing/dashboard-assistant.md). Legacy Lambda deployment files are outside the persistent DuckDB worker deployment path.
 
 ```bash
-docker compose up
+git clone --branch codex/customer-demo-1123 https://github.com/vanillabrain/vanillameta.git
+cd vanillameta
+docker compose up --build -d --wait
 ```
 
-Then open **http://localhost:3000** and sign in:
+Then open **http://localhost:3000** and create a new account from **Sign up**. For a local seeded demo, you can optionally sign in as:
 
 ```
 ID: guest
@@ -115,10 +117,12 @@ Apache-2.0 라이선스의 경량 임베디드 대시보드 — "Powered by" 로
 ### 빠른 시작
 
 ```bash
-docker compose up
+git clone --branch codex/customer-demo-1123 https://github.com/vanillabrain/vanillameta.git
+cd vanillameta
+docker compose up --build -d --wait
 ```
 
-**http://localhost:3000** 접속 → `guest` / `Admin!@12` 로그인. 외부 DB 없이 SQLite로 동작하며, 첫 가입 시 샘플 대시보드가 자동 생성됩니다.
+**http://localhost:3000**에서 **회원가입**으로 새 계정을 만듭니다. 로컬 시드 데모 계정이 필요하면 선택적으로 `guest` / `Admin!@12`를 사용할 수 있습니다. PostgreSQL 17 메타데이터와 샘플이 Docker에서 함께 준비됩니다.
 
 ### 주요 기능
 

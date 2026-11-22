@@ -1,340 +1,103 @@
-# VanillaMeta Docker Setup
+# VanillaMeta Docker 고객 시연
 
-VanillaMeta를 Docker로 실행하기 위한 완전한 가이드입니다.
+VanillaMeta를 Docker로 시작하고 새 소유자 계정, 조직 수신자, Claude Code 연결을 준비합니다. 화면 단위 안내와 검증 순서는 [Docker에서 Claude 시연 준비](./docs/user-manual/site/customer-demo.md)를 따릅니다.
 
-## 필수 요구사항
+이 시연 변경은 `codex/customer-demo-1123` 브랜치에 있습니다. 기본 브랜치에 포함된 것으로 가정하지 않습니다.
 
-- Docker 20.10+
-- Docker Compose 2.0+
-- 4GB 이상의 여유 메모리
-- 포트 80, 3000, 6379가 사용 가능해야 함
+## 시작
 
-## 빠른 시작
+`--wait`를 지원하는 Docker Compose v2가 필요합니다. 설치된 명령을 확인합니다.
 
-### 1. 저장소 클론
+```sh
+docker compose version
+```
 
-```bash
-git clone https://github.com/vanillameta/vanillameta.git
+`--wait`를 알 수 없다는 오류가 나면 Docker Compose를 갱신한 뒤 진행합니다. 현재 브랜치를 받고 저장소 루트에서 기본 스택을 시작합니다.
+
+```sh
+git clone --branch codex/customer-demo-1123 https://github.com/vanillabrain/vanillameta.git
 cd vanillameta
-```
-
-### 2. 환경 설정
-
-```bash
-# 환경 파일 생성
-cp .env.example .env
-
-# 필요에 따라 .env 파일 수정
-nano .env
-```
-
-### 3. 헬퍼 스크립트 사용
-
-```bash
-# 프로덕션 모드로 시작
-./docker-compose-helper.sh start -d
-
-# 상태 확인
-./docker-compose-helper.sh status
-
-# 로그 보기
-./docker-compose-helper.sh logs -f
-```
-
-### 4. 애플리케이션 접속
-
-- 프론트엔드: http://localhost:3000
-- 백엔드 API: http://localhost:4000/v1
-- API 문서: http://localhost:4000/v1/docs
-
-## 아키텍처
-
-### 서비스 구성
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Nginx     │────▶│  Frontend   │     │   Redis     │
-│  (Port 80)  │     │ (React App) │     │ (Port 6379) │
-└──────┬──────┘     └─────────────┘     └──────▲──────┘
-       │                                        │
-       │            ┌─────────────┐             │
-       └───────────▶│   Backend   │─────────────┘
-                    │ (NestJS API)│
-                    │ (Port 3000) │
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────┐
-                    │   SQLite    │
-                    │  (Volume)   │
-                    └─────────────┘
-```
-
-### 서비스 상세
-
-#### Redis
-
-- 캐싱 및 세션 관리
-- 영구 저장을 위한 AOF 활성화
-- 헬스체크 포함
-
-#### Backend (NestJS)
-
-- TypeScript 기반 API 서버
-- JWT 인증
-- SQLite 데이터베이스 (로컬 개발)
-- Oracle Instant Client 포함
-- 헬스체크 엔드포인트: `/v1/health` (백엔드), `/healthz` (프론트엔드 nginx)
-
-#### Frontend (React)
-
-- Material-UI 기반 UI
-- ECharts를 통한 50+ 차트 타입 지원
-- Nginx로 정적 파일 서빙
-
-#### Nginx
-
-- 리버스 프록시
-- API 요청 라우팅
-- 정적 파일 캐싱
-- 보안 헤더 설정
-
-## 개발 환경
-
-### 개발 모드 실행
-
-```bash
-./docker-compose-helper.sh start
-```
-
-개발용 `docker-compose.override.yml`(핫 리로드)은 제거되었습니다. 기본 스택이 한 줄 기동 경로입니다.
-
-개발용 핫 리로드 오버라이드는 제거했습니다. 소스를 바꾸면 이미지를 다시 빌드한다.
-
-### 특정 서비스만 실행
-
-```bash
-# 백엔드만
-docker-compose up backend
-
-# 프론트엔드만
-docker-compose up frontend
-
-# Redis만
-docker-compose up redis
-```
-
-## 환경 변수
-
-### 백엔드 환경 변수
-
-```env
-# 기본 설정
-NODE_ENV=local              # local, dev, prod
-PORT=3000                   # API 서버 포트
-
-# JWT 설정
-JWT_SECRET=your-secret-key
-JWT_EXPIRATION=1d
-JWT_REFRESH_SECRET=your-refresh-secret
-JWT_REFRESH_EXPIRATION=7d
-
-# PostgreSQL 17 메타데이터 DB
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=
-DB_NAME=vanillameta
-DB_CONNECTION_LIMIT=10
-DB_SSL=false
-
-# Redis 설정
-REDIS_HOST=redis
-REDIS_PORT=6379
-```
-
-### 프론트엔드 환경 변수
-
-```env
-REACT_APP_API_URL=http://localhost:4000/v1
-REACT_APP_MODE=local
-GENERATE_SOURCEMAP=false
-```
-
-## 데이터 영속성
-
-### 볼륨 구성
-
-- `sqlite_data`: SQLite 데이터베이스 파일
-- `redis_data`: Redis 데이터
-- `log_data`: 애플리케이션 로그
-- `nginx_logs`: Nginx 액세스/에러 로그
-
-### 백업
-
-```bash
-# 데이터 백업
-docker run --rm -v vanillameta_sqlite_data:/data -v $(pwd):/backup alpine tar czf /backup/sqlite_backup.tar.gz -C /data .
-
-# 데이터 복원
-docker run --rm -v vanillameta_sqlite_data:/data -v $(pwd):/backup alpine tar xzf /backup/sqlite_backup.tar.gz -C /data
-```
-
-## 모니터링 및 디버깅
-
-### 로그 확인
-
-```bash
-# 모든 서비스 로그
-./docker-compose-helper.sh logs
-
-# 특정 서비스 로그 팔로우
-./docker-compose-helper.sh logs -f backend
-
-# 직접 명령
-docker-compose logs -f redis
-docker-compose logs --tail=100 nginx
-```
-
-### 컨테이너 접속
-
-```bash
-# 백엔드 컨테이너 쉘
-docker-compose exec backend sh
-
-# Redis CLI
-docker-compose exec redis redis-cli
-
-# SQLite 데이터베이스 확인
-docker-compose exec backend sqlite3 /app/sqlite_data/sqlite.db
-```
-
-### 헬스체크
-
-```bash
-# 백엔드 헬스체크
+docker compose up --build -d --wait
+docker compose ps
 curl http://localhost:4000/v1/health
-
-# 프론트엔드 헬스체크
-curl http://localhost:3000/healthz
-
-# Redis 헬스체크
-docker-compose exec redis redis-cli ping
 ```
 
-## 문제 해결
+웹은 `http://localhost:3000`, API는 `http://localhost:4000/v1`, API 문서는 `http://localhost:4000/v1/api-docs`, 원격 MCP는 `http://localhost:4000/v1/mcp`에서 엽니다.
 
-### 포트 충돌
+이미지나 코드를 갱신할 때도 같은 명령을 다시 실행합니다.
 
-포트가 이미 사용 중인 경우:
-
-```bash
-# 사용 중인 포트 확인
-lsof -i :80
-lsof -i :3000
-lsof -i :6379
-
-# docker-compose.yml에서 포트 변경
-ports:
-  - "8080:80"    # 80 대신 8080 사용
+```sh
+docker compose up --build -d --wait
 ```
 
-### 권한 문제
+### 다른 포트
 
-Linux에서 권한 문제 발생 시:
+3000 또는 4000 포트가 사용 중이면 `VM_WEB_PORT`와 `VM_API_PORT`를 명령 앞에 지정합니다.
 
-```bash
-# Docker 그룹에 사용자 추가
-sudo usermod -aG docker $USER
-
-# 로그아웃 후 다시 로그인
+```sh
+VM_WEB_PORT=3100 VM_API_PORT=4100 docker compose up --build -d --wait
 ```
 
-### 메모리 부족
+웹은 `http://localhost:3100`, API는 `http://localhost:4100/v1`, MCP는 `http://localhost:4100/v1/mcp`에서 엽니다. 같은 변수를 지정한 상태에서 같은 명령을 실행하면 이미지도 갱신됩니다. Compose 파일은 직접 고치지 않습니다.
 
-Docker Desktop 설정에서 메모리 할당 증가:
+## 새 소유자와 수신자
 
-- Windows/Mac: Docker Desktop → Settings → Resources
-- Linux: `/etc/docker/daemon.json` 수정
+소유자는 로그인 화면의 **회원가입**에서 새 계정을 만들고 **가입하기 → 확인**을 진행합니다. 새 계정으로 로그인하고 대시보드의 **먼저 시작하기 → 작업 공간 연결 → 조직·직원** 또는 계정 메뉴의 **조직·직원**(`/organization`)에서 **새 조직 이름**을 입력한 뒤 **조직 만들기**를 누릅니다. 이 계정은 해당 조직의 `admin (관리자)`가 됩니다.
 
-### 빌드 캐시 문제
+로컬 데모 계정이 이미 준비된 환경이라면 `guest` / `Admin!@12`를 선택적으로 사용할 수 있습니다. 새 소유자 회원가입이 기본 경로이며, 문서 사이트에서는 회원가입 경로를 사용합니다.
 
-```bash
-# 캐시 없이 재빌드
-./docker-compose-helper.sh rebuild
+수신자는 별도 브라우저 프로필에서 새 계정을 만들고 **조직·직원 → 참여할 조직 번호**에 소유자의 조직 번호를 입력합니다. **조직 연결 코드 발급 → 코드 복사** 후 로그인 ID와 코드를 소유자에게 전달합니다. 소유자는 **기존 계정 추가**에서 로그인 ID, 팀, `member (구성원)` 역할, 연결 코드를 입력하고 동의란을 선택한 뒤 **직원 추가**를 누릅니다. 코드는 15분 동안 한 번만 사용할 수 있습니다.
 
-# 또는
-docker-compose build --no-cache
+첫 조직 만들기와 직원 추가는 singular 경로 `/organization`에서 진행합니다. Studio의 **조직 접근** 화면 `/organizations`는 소속 조직의 분석 접근을 다루는 별도 화면입니다.
+
+## Claude Code
+
+VanillaMeta에서 **내 아티팩트 → 먼저 시작하기 → 작업 공간 연결 → Claude 또는 외부 AI 연결**을 열거나 `http://localhost:3000/ai-connections`를 엽니다. **Claude Code 연결**의 **원격 MCP 서버 등록**과 **Claude Code 로그인 시작** 명령을 각각 **복사**해 실행합니다. 명령은 현재 프로젝트 범위와 별칭 `vanillameta`를 사용합니다.
+
+```sh
+claude mcp add --transport http --client-id claude-code --callback-port 53683 vanillameta 'http://localhost:4000/v1/mcp'
+claude mcp login vanillameta
+claude mcp get vanillameta
 ```
 
-## 프로덕션 배포
+승인 화면에서 현재 계정과 조직을 확인하고 **내 아티팩트 읽기**와 **내 아티팩트 만들기·수정·삭제**를 모두 선택합니다. **연결 승인** 뒤 `claude mcp get vanillameta`에서 **Connected**를 확인합니다. 다른 API 포트를 썼다면 제품 화면의 **서버가 제공한 MCP 주소**와 등록 명령을 새로 복사합니다.
 
-### 보안 설정
+## 중지와 재개
 
-1. `.env` 파일의 시크릿 값들 변경
-2. HTTPS 설정 추가 (Let's Encrypt)
-3. 방화벽 규칙 설정
-
-### 성능 최적화
-
-1. 빌드 시 프로덕션 최적화 활성화
-2. 리소스 제한 설정:
-
-```yaml
-services:
-  backend:
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
+```sh
+docker compose stop
+docker compose start
 ```
 
-### 모니터링 추가
+컴퓨터나 Docker를 다시 시작한 뒤에는 같은 기본 명령으로 이어서 실행합니다. 메타데이터와 업로드 파일은 Compose 볼륨에 남습니다. `docker compose down`도 볼륨을 남기며, `docker compose down -v`는 데이터를 삭제합니다.
 
-- Prometheus + Grafana
-- ELK Stack (Elasticsearch, Logstash, Kibana)
-- Health check 대시보드
+## 문제 확인
 
-## 유용한 명령어
-
-```bash
-# 전체 시스템 재시작
-./docker-compose-helper.sh restart
-
-# 이미지 업데이트 후 재시작
-./docker-compose-helper.sh build && ./docker-compose-helper.sh restart
-
-# 완전 초기화 (데이터 손실 주의!)
-./docker-compose-helper.sh reset
-
-# 디스크 공간 확보
-docker system prune -af
-
-# 실행 중인 컨테이너 리소스 사용량
-docker stats
+```sh
+docker compose ps
+docker compose logs --tail=200 postgres backend frontend
 ```
 
-## 추가 리소스
+- 포트 충돌은 `VM_WEB_PORT`와 `VM_API_PORT`로 해결합니다.
+- Claude 도구가 없으면 `/ai-connections`의 주소와 `claude mcp get vanillameta`를 확인합니다.
+- 승인 화면에 쓰기 권한이 없으면 **요청 취소** 후 등록 명령과 로그인 명령을 새로 실행합니다.
+- 조직 연결 코드가 만료됐거나 이미 사용됐다면 수신자가 새 코드를 발급합니다.
+- 수신자가 차트를 열지 못하면 조직 관계, **열람 가능한 구성원**, 소스 읽기 권한을 각각 확인합니다.
+- `revision mismatch`이면 새 차트를 만들지 말고 현재 차트를 다시 읽어 한 번만 수정합니다.
 
-- [Docker 공식 문서](https://docs.docker.com/)
-- [Docker Compose 문서](https://docs.docker.com/compose/)
-- [VanillaMeta 개발 가이드](./docs/개발_가이드.md)
-- [기술 아키텍처](./docs/기술_아키텍처.md)
+## 문서와 확인
 
-## 원격 MCP와 AI 아티팩트
+- [Docker와 소유자·수신자·Claude 전체 순서](./docs/user-manual/site/customer-demo.md)
+- [화면별 검증 순서](./docs/user-manual/site/customer-demo.md#verification)
+- [조직 공유와 권한](./docs/user-manual/site/organization.md)
+- [Codex와 Claude로 첫 차트 만들기](./docs/user-manual/site/codex-first-chart.md)
+- [원격 MCP 연결](./docs/user-manual/site/remote-mcp.md)
+- [초안·충돌 복구](./docs/user-manual/site/recovery.md)
+- [문제 해결](./docs/user-manual/site/troubleshooting.md)
 
-`docker compose up --build` 는 원격 MCP 를 기본으로 켠다. AI 호스트(Claude Code 등)는
-`http://localhost:4000/v1/mcp` 에 OAuth 로 연결하고, 승인 화면에서 범위를 고른다.
+VitePress 문서는 다음 명령으로 빌드하고 링크를 검사합니다.
 
-- 기본 클라이언트 `claude-code`, 콜백 `http://localhost:53683/callback`
-- 범위: `sources:read`, `documents:read`, `artifacts:read`, `artifacts:write`
-- 아티팩트 도구: `vm_create_artifact`, `vm_update_artifact`, `vm_delete_artifact`, `vm_get_artifact`, `vm_list_artifacts`
-- 종류와 내용: html `{html}`, document `{markdown}`, sheet `{columns, rows}`, chart `{chartType, labels, series}`
-- 만든 아티팩트는 `http://localhost:3000/ai-artifacts/<id>` 에서 열린다. 소유자만 읽고 쓸 수 있다.
-- 쓰기는 `expectedRevision` 으로 충돌을 막는다.
-
-재판정은 `scripts/verify/mcp-artifacts-e2e.sh` 하나로 한다(빌드, MCP 쓰기, 읽기, 재기동 유지까지).
-끄려면 `MCP_OAUTH_CLIENTS_JSON=`(빈 값)으로 띄운다.
+```sh
+npm run docs:build
+npm --prefix docs/user-manual run check
+```

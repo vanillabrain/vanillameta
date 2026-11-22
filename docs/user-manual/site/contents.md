@@ -6,6 +6,7 @@
 
 | 단계 | 해볼 일 |
 | --- | --- |
+| 0. [Docker에서 Claude 시작](./customer-demo.md) | 웹과 API를 시작하고 소유자·수신자·Claude 연결 준비하기 · [검증 순서](./customer-demo.md#verification) |
 | 1. [아티팩트 이해하기](./agent-artifacts.md) | 대시보드·Studio·블록의 관계 알기 |
 | 2. [첫 아티팩트 만들기](./quickstart.md) | 샘플로 숫자와 차트를 만들고 저장하기 |
 | 2a. [Codex로 첫 차트 만들기](./codex-first-chart.md) | 원격 MCP로 지역별 차트를 만들고 수정해 동료에게 공유하기 |
@@ -28,6 +29,7 @@
 
 ## 팀·관리자·외부 에이전트
 
+- [Docker에서 Claude 시연 준비](./customer-demo.md)
 - [조직 공유와 권한](./organization.md) · [직원 공유·재사용 실습](./team-reuse-walkthrough.md)
 - [관리자용 AI 실행 환경](./agent-connection.md)
 - [Codex로 첫 차트 만들기](./codex-first-chart.md)

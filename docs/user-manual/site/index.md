@@ -41,3 +41,5 @@ features:
 - 진행이 막혔다면 [문제 해결](./troubleshooting.md)
 
 세부 기능과 관리자 안내는 [전체 안내](./contents.md)에서 필요한 항목만 찾아보세요.
+
+로컬 Docker 환경에서 Claude Code 연결과 조직 공유까지 준비하려면 [Docker에서 Claude 시연 준비](./customer-demo.md)를 따릅니다.
