@@ -12,6 +12,9 @@ export const SCOPE_LABEL_KEYS: Record<string, string> = {
   'artifacts:write': 'artifactsWrite',
 };
 
+const WRITE_SCOPES: readonly string[] = ['artifacts:write'];
+export const isWriteScope = (scope: string) => WRITE_SCOPES.includes(scope);
+
 export function useConnectionScope() {
   const [scope, setScope] = useState(personalLibrarySessionScope);
   useEffect(() => {

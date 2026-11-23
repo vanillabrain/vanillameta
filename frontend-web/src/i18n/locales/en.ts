@@ -25,6 +25,7 @@ export default {
     documentsRead: 'Read saved document content',
     artifactsRead: 'Read my artifacts',
     artifactsWrite: 'Create, update and delete my artifacts',
+    writeOptIn: 'Write access is off by default. Tick it only if the AI should create and change your artifacts.',
     approve: 'Approve connection',
     cancel: 'Cancel request',
     loading: 'Loading connections…',
