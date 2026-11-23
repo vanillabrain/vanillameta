@@ -27,7 +27,7 @@ services:
     # 부팅 시 시드(멱등) 후 앱 기동
     command: sh -c "mkdir -p /data/uploads && node dist/src/database/run-seed.js && node dist/src/main.js"
     ports:
-      - "4000:4000"
+      - "${BACKEND_HOST_PORT:-4000}:4000"
     volumes:
       - vanillameta-data:/data
     depends_on:
@@ -40,7 +40,7 @@ services:
       args:
         REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:4000/v1}
     ports:
-      - "3000:80"
+      - "${FRONTEND_HOST_PORT:-3000}:80"
     depends_on:
       - backend
 
@@ -51,7 +51,7 @@ services:
       POSTGRES_USER: vanillameta
       POSTGRES_PASSWORD: vanillameta
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
