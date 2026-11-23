@@ -687,6 +687,42 @@ export class McpOAuthService {
     }
   }
 
+  /**
+   * Runs a write while the grant and its actor stay locked in the same transaction, so a
+   * disconnect or deactivation either waits for the write to commit or is seen by the check.
+   * Lock order (actor, then grant) matches disconnect().
+   */
+  async runAuthorized<T>(
+    principal: McpOAuthPrincipal,
+    work: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const tokenHash = this.bearerProofs.get(principal);
+    if (!tokenHash) throw new UnauthorizedException('Authorization unavailable.');
+    return sourceWriteTransaction(this.db, async manager => {
+      try {
+        await lockSourceActor(manager, principal.actorId, principal.authVersion);
+        const config = this.config();
+        const token = await manager.findOneBy(McpOAuthToken, { tokenHash });
+        if (!token || token.expiresAt.getTime() <= Date.now() || token.resource !== config.resource)
+          throw new UnauthorizedException();
+        const grant = await this.checkedGrant(manager, token.grantId, config, true);
+        this.config(config.fingerprint);
+        const current = {
+          grantId: grant.id,
+          actorId: grant.actorId,
+          authVersion: grant.authVersion,
+          organizationId: grant.organizationId,
+          scopes: [...grant.scopes],
+        };
+        if (JSON.stringify(current) !== JSON.stringify(principal))
+          throw new UnauthorizedException();
+      } catch {
+        throw new UnauthorizedException('Authorization unavailable.');
+      }
+      return work(manager);
+    });
+  }
+
   async revalidate(principal: McpOAuthPrincipal): Promise<void> {
     try {
       const tokenHash = this.bearerProofs.get(principal);
