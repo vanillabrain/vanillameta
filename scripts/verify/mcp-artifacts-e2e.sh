@@ -42,7 +42,7 @@ API_PORT=${API%/v1}; API_PORT=${API_PORT##*:}
 API_HOST=${API#*://}; API_HOST=${API_HOST%%/*}
 export FRONTEND_HOST_PORT=$WEB_PORT BACKEND_HOST_PORT=$API_PORT
 export MCP_PUBLIC_API_URL=$API MCP_PUBLIC_WEB_URL="$WEB/" CORS_ORIGIN=$WEB REACT_APP_API_URL=$API
-[ "$API_PORT" = 4000 ] || export POSTGRES_HOST_PORT=$((API_PORT + 1000))
+[ "$API_PORT" = 4000 ] || export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:-$((API_PORT + 1000))}
 
 mkdir -p "$EVIDENCE"
 JAR=$(mktemp)
@@ -241,10 +241,12 @@ echo "== 7. 연결 해제가 진행 중일 때 쓰기는 반영되지 않는다 
 psql_run() { compose exec -T postgres psql -U vanillameta -d vanillameta -At "$@"; }
 BEFORE=$(psql_run -c "SELECT COUNT(*) FROM ai_artifact WHERE title='Race Probe'")
 (psql_run -c "BEGIN; SELECT id FROM \"user\" WHERE id = (SELECT \"actorId\" FROM mcp_oauth_grant WHERE revoked = false LIMIT 1) FOR UPDATE; UPDATE mcp_oauth_grant SET revoked = true WHERE revoked = false; SELECT pg_sleep(6); COMMIT;" >/dev/null 2>&1 &)
+HELD=0
 for _ in $(seq 1 40); do
-  [ "$(psql_run -c "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' AND query LIKE '%pg_sleep(6)%' AND pid <> pg_backend_pid()")" -ge 1 ] && break
+  if [ "$(psql_run -c "SELECT COUNT(*) FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query LIKE '%pg_sleep(6)%' AND pid <> pg_backend_pid()")" -ge 1 ]; then HELD=1; break; fi
   sleep 0.5
 done
+[ "$HELD" = 1 ] && pass "연결 해제 트랜잭션이 잠금을 쥐고 있음" || fail "연결 해제 트랜잭션이 잠금을 쥐지 못함(경합 판정 무효)"
 RACE=$(call vm_create_artifact '{"kind":"html","title":"Race Probe","content":{"html":"<p>raced</p>"}}')
 echo "$RACE" >"$EVIDENCE/race-response.json"
 sleep 6
