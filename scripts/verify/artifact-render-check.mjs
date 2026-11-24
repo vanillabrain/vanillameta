@@ -62,10 +62,12 @@ try {
         if (!canvas || canvas.width < 100 || canvas.height < 100) return 0;
         const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
         let count = 0;
-        for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) count += 1;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] > 200 && Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]) > 40) count += 1;
+        }
         return count;
       });
-      report(painted > 2_000, `${label}: canvas 에 그려진 픽셀 ${painted}`);
+      report(painted > 2_000, `${label}: canvas 에 색이 있는 데이터 픽셀 ${painted} (축과 라벨은 회색이라 세지 않음)`);
     }
     report((await page.locator('[role="alert"]').count()) === 0, `${label}: 오류 알림 없음`);
     await page.screenshot({ path: join(shots, `${item.name}.png`), fullPage: true });
