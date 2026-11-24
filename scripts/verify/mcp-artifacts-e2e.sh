@@ -240,18 +240,26 @@ render_check restarted
 echo "== 7. 연결 해제가 진행 중일 때 쓰기는 반영되지 않는다 =="
 psql_run() { compose exec -T postgres psql -U vanillameta -d vanillameta -At "$@"; }
 BEFORE=$(psql_run -c "SELECT COUNT(*) FROM ai_artifact WHERE title='Race Probe'")
-(psql_run -c "BEGIN; SELECT id FROM \"user\" WHERE id = (SELECT \"actorId\" FROM mcp_oauth_grant WHERE revoked = false LIMIT 1) FOR UPDATE; UPDATE mcp_oauth_grant SET revoked = true WHERE revoked = false; SELECT pg_sleep(6); COMMIT;" >/dev/null 2>&1 &)
+ACTIVE=$(psql_run -c "SELECT COUNT(*) FROM mcp_oauth_grant WHERE revoked = false")
+[ "$ACTIVE" -ge 1 ] && pass "해제할 활성 연결이 $ACTIVE 개 있음" || fail "해제할 활성 연결이 없음(경합 판정 무효)"
+(psql_run -c "BEGIN; SELECT id FROM \"user\" WHERE id = (SELECT \"actorId\" FROM mcp_oauth_grant WHERE revoked = false LIMIT 1) FOR UPDATE; UPDATE mcp_oauth_grant SET revoked = true WHERE revoked = false; SELECT pg_sleep(10); COMMIT;" >/dev/null 2>&1 &)
 HELD=0
 for _ in $(seq 1 40); do
-  if [ "$(psql_run -c "SELECT COUNT(*) FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query LIKE '%pg_sleep(6)%' AND pid <> pg_backend_pid()")" -ge 1 ]; then HELD=1; break; fi
+  if [ "$(psql_run -c "SELECT COUNT(*) FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query LIKE '%pg_sleep(10)%' AND pid <> pg_backend_pid()")" -ge 1 ]; then HELD=1; break; fi
   sleep 0.5
 done
 [ "$HELD" = 1 ] && pass "연결 해제 트랜잭션이 잠금을 쥐고 있음" || fail "연결 해제 트랜잭션이 잠금을 쥐지 못함(경합 판정 무효)"
+WRITE_START=$SECONDS
 RACE=$(call vm_create_artifact '{"kind":"html","title":"Race Probe","content":{"html":"<p>raced</p>"}}')
+WAITED=$((SECONDS - WRITE_START))
 echo "$RACE" >"$EVIDENCE/race-response.json"
-sleep 6
+sleep 10
 AFTER=$(psql_run -c "SELECT COUNT(*) FROM ai_artifact WHERE title='Race Probe'")
-echo "$RACE" | grep -q '"isError":true' && pass "해제 중인 연결의 쓰기 응답이 오류" || fail "해제 중인 연결의 쓰기가 성공으로 응답"
+REVOKED=$(psql_run -c "SELECT COUNT(*) FROM mcp_oauth_grant WHERE revoked = true")
+[ "$REVOKED" -ge 1 ] && pass "해제 트랜잭션이 연결 $REVOKED 개를 실제로 해제함" || fail "해제 트랜잭션이 아무 연결도 해제하지 못함(경합 판정 무효)"
+[ "$WAITED" -ge 2 ] && pass "쓰기가 잠금이 풀릴 때까지 ${WAITED}초 기다림" || fail "쓰기가 잠금을 기다리지 않고 ${WAITED}초 만에 돌아옴(경합 판정 무효)"
+echo "$RACE" | grep -q '"isError":true' && echo "$RACE" | grep -q 'cannot authorize this write' \
+  && pass "해제 중인 연결의 쓰기가 권한 오류로 거절됨" || fail "해제 중인 연결의 쓰기가 권한 오류로 거절되지 않음"
 [ "$AFTER" = "$BEFORE" ] && pass "해제된 연결로 행이 생기지 않음($BEFORE → $AFTER)" || fail "해제된 연결로 행이 생김($BEFORE → $AFTER)"
 LATER=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
