@@ -1,4 +1,14 @@
-import { All, Controller, Get, Header, HttpException, Req, Res, Module } from '@nestjs/common';
+import {
+  All,
+  Controller,
+  Get,
+  Header,
+  HttpException,
+  Logger,
+  Req,
+  Res,
+  Module,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -55,6 +65,8 @@ export class McpMetadataController {
 
 @Controller('mcp')
 export class McpController {
+  private readonly logger = new Logger(McpController.name);
+
   constructor(
     private readonly auth: McpOAuthService,
     private readonly read: McpReadService,
@@ -114,10 +126,17 @@ export class McpController {
         return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
       } catch (error) {
         const status = error instanceof HttpException ? error.getStatus() : 500;
+        if (!(error instanceof HttpException))
+          this.logger.error(
+            'MCP write failed unexpectedly',
+            error instanceof Error ? error.stack : String(error),
+          );
         const text =
-          status < 500 && status !== 401 && status !== 403
+          status === 401 || status === 403
+            ? 'The current connection or resource cannot authorize this write. Review access in VanillaMeta.'
+            : status < 500
             ? String((error as HttpException).message).slice(0, 300)
-            : 'The current connection or resource cannot authorize this write. Review access in VanillaMeta.';
+            : 'The write could not be completed right now. Try again shortly.';
         return { isError: true, content: [{ type: 'text' as const, text }] };
       }
     };

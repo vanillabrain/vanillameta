@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -73,6 +75,8 @@ const same = (left: string, right: string) => {
 export class McpOAuthService {
   private readonly bearerProofs = new WeakMap<McpOAuthPrincipal, string>();
   private pendingAdmission: Promise<unknown> = Promise.resolve();
+
+  private readonly logger = new Logger(McpOAuthService.name);
 
   constructor(private readonly db: DataSource) {}
 
@@ -716,8 +720,14 @@ export class McpOAuthService {
         };
         if (JSON.stringify(current) !== JSON.stringify(principal))
           throw new UnauthorizedException();
-      } catch {
-        throw new UnauthorizedException('Authorization unavailable.');
+      } catch (error) {
+        if (error instanceof HttpException)
+          throw new UnauthorizedException('Authorization unavailable.');
+        this.logger.error(
+          'MCP write authorization could not be checked',
+          error instanceof Error ? error.stack : String(error),
+        );
+        throw new ServiceUnavailableException('Authorization could not be checked.');
       }
       return work(manager);
     });

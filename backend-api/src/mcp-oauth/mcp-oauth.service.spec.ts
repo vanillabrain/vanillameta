@@ -2,6 +2,7 @@ import {
   ArgumentsHost,
   HttpException,
   INestApplication,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -483,6 +484,29 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     await expect(
       service.runAuthorized({ ...principal }, async () => 'must not run'),
     ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('reports a failed authorization check as unavailable and logged, not as a refused grant', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const logged = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const broken = jest
+      .spyOn(service as unknown as { checkedGrant: () => Promise<never> }, 'checkedGrant')
+      .mockRejectedValueOnce(new Error('connection terminated unexpectedly'));
+    const work = jest.fn(async () => 'must not run');
+    try {
+      await expect(service.runAuthorized(principal, work)).rejects.toMatchObject({ status: 503 });
+      expect(work).not.toHaveBeenCalled();
+      expect(logged).toHaveBeenCalledWith(
+        'MCP write authorization could not be checked',
+        expect.stringContaining('connection terminated unexpectedly'),
+      );
+    } finally {
+      broken.mockRestore();
+      logged.mockRestore();
+    }
+    await expect(service.runAuthorized(principal, async () => 'ok')).resolves.toBe('ok');
   });
 
   it('revokes the whole grant for matching client and keeps unknown tokens indistinguishable', async () => {
