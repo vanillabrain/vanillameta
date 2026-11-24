@@ -721,13 +721,15 @@ export class McpOAuthService {
         if (JSON.stringify(current) !== JSON.stringify(principal))
           throw new UnauthorizedException();
       } catch (error) {
-        if (error instanceof HttpException)
+        if (error instanceof HttpException && error.getStatus() < 500)
           throw new UnauthorizedException('Authorization unavailable.');
         this.logger.error(
           'MCP write authorization could not be checked',
           error instanceof Error ? error.stack : String(error),
         );
-        throw new ServiceUnavailableException('Authorization could not be checked.');
+        throw new ServiceUnavailableException('Authorization could not be checked.', {
+          cause: error,
+        });
       }
       return work(manager);
     });

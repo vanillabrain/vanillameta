@@ -3,6 +3,7 @@ import {
   HttpException,
   INestApplication,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -507,6 +508,24 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
       logged.mockRestore();
     }
     await expect(service.runAuthorized(principal, async () => 'ok')).resolves.toBe('ok');
+  });
+
+  it('does not turn an unavailable OAuth configuration into a refused grant', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const unconfigured = jest
+      .spyOn(service as unknown as { config: () => never }, 'config')
+      .mockImplementationOnce(() => {
+        throw new ServiceUnavailableException('OAuth unavailable.');
+      });
+    const work = jest.fn(async () => 'must not run');
+    try {
+      await expect(service.runAuthorized(principal, work)).rejects.toMatchObject({ status: 503 });
+      expect(work).not.toHaveBeenCalled();
+    } finally {
+      unconfigured.mockRestore();
+    }
   });
 
   it('revokes the whole grant for matching client and keeps unknown tokens indistinguishable', async () => {
