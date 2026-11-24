@@ -2,7 +2,7 @@
 # 한 줄로 MCP 아티팩트 시스템을 재판정한다.
 #   scripts/verify/mcp-artifacts-e2e.sh          # 빌드 → 기동 → MCP 쓰기 → 화면 URL 확인 → 재기동 유지 → 정리
 #   KEEP=1 scripts/verify/mcp-artifacts-e2e.sh   # 스택을 남겨 둔다(직접 열어 볼 때)
-# 이 스크립트가 만든 compose 프로젝트만 정리한다. 프로젝트 이름은 실행마다 다르고 vm- 으로 시작해야 한다.
+# 이 스크립트가 만든 compose 프로젝트만 정리한다. 프로젝트 이름은 실행마다 다르고 vm-artifacts-verify- 로 시작해야 한다.
 # 전제: docker compose, curl, python3, node(브라우저 판정), 포트 3000·4000 비어 있음(아니면 VM_WEB_URL·VM_API_URL).
 set -euo pipefail
 
@@ -24,8 +24,8 @@ if [ -n "${VM_COLIMA_PROFILE:-}" ]; then
   fi
 fi
 case "$PROJECT" in
-  vm-*) ;;
-  *) echo "프로젝트 이름은 vm- 으로 시작해야 합니다(받은 값: $PROJECT). 다른 스택의 볼륨을 지우지 않으려는 방어입니다." >&2; exit 2 ;;
+  vm-artifacts-verify-*) ;;
+  *) echo "프로젝트 이름은 vm-artifacts-verify- 로 시작해야 합니다(받은 값: $PROJECT). 다른 스택의 볼륨을 지우지 않으려는 방어입니다." >&2; exit 2 ;;
 esac
 command -v curl >/dev/null || { echo "curl 이 필요합니다" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 가 필요합니다" >&2; exit 2; }
