@@ -1,5 +1,16 @@
-import { All, Controller, Get, Header, HttpException, Req, Res, Module } from '@nestjs/common';
+import {
+  All,
+  Controller,
+  Get,
+  Header,
+  HttpException,
+  Logger,
+  Req,
+  Res,
+  Module,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
+import { EntityManager } from 'typeorm';
 import { McpServer } from '@modelcontextprotocol/server';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { z } from 'mcp-zod';
@@ -54,6 +65,8 @@ export class McpMetadataController {
 
 @Controller('mcp')
 export class McpController {
+  private readonly logger = new Logger(McpController.name);
+
   constructor(
     private readonly auth: McpOAuthService,
     private readonly read: McpReadService,
@@ -107,16 +120,23 @@ export class McpController {
         };
       }
     };
-    const safeWrite = async (run: () => Promise<unknown>) => {
+    const safeWrite = async (run: (manager: EntityManager) => Promise<unknown>) => {
       try {
-        await this.auth.revalidate(principal);
-        const value = await run();
+        const value = await this.auth.runAuthorized(principal, run);
         return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
       } catch (error) {
+        const status = error instanceof HttpException ? error.getStatus() : 500;
+        if (!(error instanceof HttpException))
+          this.logger.error(
+            'MCP write failed unexpectedly',
+            error instanceof Error ? error.stack : String(error),
+          );
         const text =
-          error instanceof HttpException && error.getStatus() < 500
-            ? String(error.message).slice(0, 300)
-            : 'The current connection or resource cannot authorize this write. Review access in VanillaMeta.';
+          status === 401 || status === 403
+            ? 'The current connection or resource cannot authorize this write. Review access in VanillaMeta.'
+            : status < 500
+            ? String((error as HttpException).message).slice(0, 300)
+            : 'The write could not be completed right now. Try again shortly.';
         return { isError: true, content: [{ type: 'text' as const, text }] };
       }
     };
@@ -182,12 +202,13 @@ export class McpController {
           annotations: { readOnlyHint: false, destructiveHint: false },
         },
         async input =>
-          safeWrite(async () =>
+          safeWrite(async manager =>
             withUrl(
               await this.artifacts.create(
                 { actorId: principal.actorId },
                 principal.organizationId,
                 input,
+                manager,
               ),
             ),
           ),
@@ -208,7 +229,9 @@ export class McpController {
           annotations: { readOnlyHint: false, destructiveHint: false },
         },
         async input =>
-          safeWrite(async () => this.artifacts.update({ actorId: principal.actorId }, input)),
+          safeWrite(async manager =>
+            this.artifacts.update({ actorId: principal.actorId }, input, manager),
+          ),
       );
       server.registerTool(
         'vm_delete_artifact',
@@ -221,7 +244,9 @@ export class McpController {
           annotations: { readOnlyHint: false, destructiveHint: true },
         },
         async input =>
-          safeWrite(async () => this.artifacts.delete({ actorId: principal.actorId }, input)),
+          safeWrite(async manager =>
+            this.artifacts.delete({ actorId: principal.actorId }, input, manager),
+          ),
       );
     }
     if (principal.scopes.includes('documents:read')) {

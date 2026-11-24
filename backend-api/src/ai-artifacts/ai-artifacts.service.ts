@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { z } from 'zod';
 import { AiArtifact, AiArtifactKind } from './ai-artifact.entity';
 
@@ -75,6 +75,10 @@ function parse<T>(schema: z.ZodType<T>, value: unknown, message: string): T {
 export class AiArtifactsService {
   constructor(@InjectRepository(AiArtifact) private readonly repository: Repository<AiArtifact>) {}
 
+  private repo(manager?: EntityManager): Repository<AiArtifact> {
+    return manager ? manager.getRepository(AiArtifact) : this.repository;
+  }
+
   private summary(row: AiArtifact): AiArtifactSummary {
     return {
       id: row.id,
@@ -89,6 +93,7 @@ export class AiArtifactsService {
     actor: AiArtifactActor,
     organizationId: number,
     input: { kind: unknown; title: unknown; content: unknown },
+    manager?: EntityManager,
   ) {
     const kind = parse(kindSchema, input.kind, 'kind') as AiArtifactKind;
     const title = parse(titleSchema, input.title, 'title');
@@ -106,7 +111,7 @@ export class AiArtifactsService {
       updatedAt: now,
       deletedAt: null,
     };
-    await this.repository.insert(row);
+    await this.repo(manager).insert(row);
     return this.summary(row);
   }
 
@@ -133,10 +138,11 @@ export class AiArtifactsService {
   async update(
     actor: AiArtifactActor,
     input: { id: unknown; expectedRevision: unknown; title?: unknown; content?: unknown },
+    manager?: EntityManager,
   ) {
     const id = parse(idSchema, input.id, 'id');
     const expectedRevision = parse(revisionSchema, input.expectedRevision, 'expectedRevision');
-    const current = await this.repository.findOneBy({
+    const current = await this.repo(manager).findOneBy({
       id,
       ownerId: actor.actorId,
       deletedAt: IsNull(),
@@ -154,7 +160,7 @@ export class AiArtifactsService {
             `${current.kind} content`,
           ) as Record<string, unknown>);
     const updatedAt = new Date().toISOString();
-    const result = await this.repository
+    const result = await this.repo(manager)
       .createQueryBuilder()
       .update()
       .set({ title, content, revision: current.revision + 1, updatedAt })
@@ -170,11 +176,15 @@ export class AiArtifactsService {
     };
   }
 
-  async delete(actor: AiArtifactActor, input: { id: unknown; expectedRevision: unknown }) {
+  async delete(
+    actor: AiArtifactActor,
+    input: { id: unknown; expectedRevision: unknown },
+    manager?: EntityManager,
+  ) {
     const id = parse(idSchema, input.id, 'id');
     const expectedRevision = parse(revisionSchema, input.expectedRevision, 'expectedRevision');
     const updatedAt = new Date().toISOString();
-    const result = await this.repository
+    const result = await this.repo(manager)
       .createQueryBuilder()
       .update()
       .set({ deletedAt: updatedAt, updatedAt })
@@ -185,7 +195,7 @@ export class AiArtifactsService {
       })
       .execute();
     if (!result.affected) {
-      const current = await this.repository.findOneBy({ id, ownerId: actor.actorId });
+      const current = await this.repo(manager).findOneBy({ id, ownerId: actor.actorId });
       if (!current || current.deletedAt) throw new NotFoundException();
       throw new ConflictException('revision mismatch');
     }

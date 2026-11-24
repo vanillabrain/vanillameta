@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -73,6 +75,8 @@ const same = (left: string, right: string) => {
 export class McpOAuthService {
   private readonly bearerProofs = new WeakMap<McpOAuthPrincipal, string>();
   private pendingAdmission: Promise<unknown> = Promise.resolve();
+
+  private readonly logger = new Logger(McpOAuthService.name);
 
   constructor(private readonly db: DataSource) {}
 
@@ -685,6 +689,50 @@ export class McpOAuthService {
     } catch {
       throw new UnauthorizedException('Authorization unavailable.');
     }
+  }
+
+  /**
+   * Runs a write while the grant and its actor stay locked in the same transaction, so a
+   * disconnect or deactivation either waits for the write to commit or is seen by the check.
+   * Lock order (actor, then grant) matches disconnect().
+   */
+  async runAuthorized<T>(
+    principal: McpOAuthPrincipal,
+    work: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const tokenHash = this.bearerProofs.get(principal);
+    if (!tokenHash) throw new UnauthorizedException('Authorization unavailable.');
+    return sourceWriteTransaction(this.db, async manager => {
+      try {
+        await lockSourceActor(manager, principal.actorId, principal.authVersion);
+        const config = this.config();
+        const token = await manager.findOneBy(McpOAuthToken, { tokenHash });
+        if (!token || token.expiresAt.getTime() <= Date.now() || token.resource !== config.resource)
+          throw new UnauthorizedException();
+        const grant = await this.checkedGrant(manager, token.grantId, config, true);
+        this.config(config.fingerprint);
+        const current = {
+          grantId: grant.id,
+          actorId: grant.actorId,
+          authVersion: grant.authVersion,
+          organizationId: grant.organizationId,
+          scopes: [...grant.scopes],
+        };
+        if (JSON.stringify(current) !== JSON.stringify(principal))
+          throw new UnauthorizedException();
+      } catch (error) {
+        if (error instanceof HttpException && error.getStatus() < 500)
+          throw new UnauthorizedException('Authorization unavailable.');
+        this.logger.error(
+          'MCP write authorization could not be checked',
+          error instanceof Error ? error.stack : String(error),
+        );
+        throw new ServiceUnavailableException('Authorization could not be checked.', {
+          cause: error,
+        });
+      }
+      return work(manager);
+    });
   }
 
   async revalidate(principal: McpOAuthPrincipal): Promise<void> {

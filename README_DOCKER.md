@@ -328,6 +328,7 @@ docker stats
 
 `docker compose up --build` 는 원격 MCP 를 기본으로 켠다. AI 호스트(Claude Code 등)는
 `http://localhost:4000/v1/mcp` 에 OAuth 로 연결하고, 승인 화면에서 범위를 고른다.
+승인 화면은 읽기 범위만 미리 선택한다. AI 가 아티팩트를 만들고 바꾸게 하려면 `artifacts:write` 를 직접 선택해야 한다.
 
 - 기본 클라이언트 `claude-code`, 콜백 `http://localhost:53683/callback`
 - 범위: `sources:read`, `documents:read`, `artifacts:read`, `artifacts:write`
@@ -336,5 +337,7 @@ docker stats
 - 만든 아티팩트는 `http://localhost:3000/ai-artifacts/<id>` 에서 열린다. 소유자만 읽고 쓸 수 있다.
 - 쓰기는 `expectedRevision` 으로 충돌을 막는다.
 
-재판정은 `scripts/verify/mcp-artifacts-e2e.sh` 하나로 한다(빌드, MCP 쓰기, 읽기, 재기동 유지까지).
+재판정은 `scripts/verify/mcp-artifacts-e2e.sh` 하나로 한다(빌드, MCP 쓰기, 읽기, 실제 브라우저 렌더, 재기동 유지,
+연결 해제 경합까지). 브라우저 판정은 `frontend-web` 의 Playwright 를 쓰며 `npx playwright install chromium` 이 필요하다.
+운영 DB 는 `npm run migration:run:prod` 로 `ai_artifact` 테이블이 만들어진다(개발 `docker compose` 는 동기화로 만든다).
 끄려면 `MCP_OAUTH_CLIENTS_JSON=`(빈 값)으로 띄운다.

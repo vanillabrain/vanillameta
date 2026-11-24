@@ -5,7 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { aiConnectionsService, AiScope, ConsentDecision, ConsentRequest } from '@/api/aiConnectionsService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
-import { ConnectionFrame, SCOPE_LABEL_KEYS, useConnectionScope } from './shared';
+import { ConnectionFrame, SCOPE_LABEL_KEYS, isWriteScope, useConnectionScope } from './shared';
 
 type State =
   | { kind: 'loading' }
@@ -28,7 +28,11 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
         .request(ticket, controller.signal)
         .then(request => {
           if (!controller.signal.aborted && scope === personalLibrarySessionScope())
-            setState({ kind: 'review', request, scopes: request.requestedScopes });
+            setState({
+              kind: 'review',
+              request,
+              scopes: request.requestedScopes.filter(name => !isWriteScope(name)),
+            });
         })
         .catch(() => {
           if (!controller.signal.aborted) setState({ kind: 'error' });
@@ -105,6 +109,9 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
       </dl>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 font-medium">{t('aiConnections.scopes')}</legend>
+        {state.request.requestedScopes.some(isWriteScope) && (
+          <p className="text-sm text-muted-foreground">{t('aiConnections.writeOptIn')}</p>
+        )}
         {state.request.requestedScopes.map(scopeName => (
           <label
             key={scopeName}

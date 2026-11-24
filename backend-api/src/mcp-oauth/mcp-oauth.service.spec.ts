@@ -2,6 +2,8 @@ import {
   ArgumentsHost,
   HttpException,
   INestApplication,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -455,6 +457,75 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     });
     await expect(service.revalidate(principal)).rejects.toThrow();
     expect(JSON.stringify(await db.getRepository(User).find())).toBe(before);
+  });
+
+  it('runs an authorized write only while the grant is still active', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const work = jest.fn(async () => 'done');
+    await expect(service.runAuthorized(principal, work)).resolves.toBe('done');
+    expect(work).toHaveBeenCalledTimes(1);
+    work.mockClear();
+    await service.disconnect(actor, principal.grantId, {});
+    await expect(service.runAuthorized(principal, work)).rejects.toMatchObject({ status: 401 });
+    expect(work).not.toHaveBeenCalled();
+  });
+
+  it('lets the write own its failures and refuses a principal it never authenticated', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const conflict = Object.assign(new Error('revision mismatch'), { status: 409 });
+    await expect(
+      service.runAuthorized(principal, async () => {
+        throw conflict;
+      }),
+    ).rejects.toBe(conflict);
+    await expect(
+      service.runAuthorized({ ...principal }, async () => 'must not run'),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('reports a failed authorization check as unavailable and logged, not as a refused grant', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const logged = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const broken = jest
+      .spyOn(service as unknown as { checkedGrant: () => Promise<never> }, 'checkedGrant')
+      .mockRejectedValueOnce(new Error('connection terminated unexpectedly'));
+    const work = jest.fn(async () => 'must not run');
+    try {
+      await expect(service.runAuthorized(principal, work)).rejects.toMatchObject({ status: 503 });
+      expect(work).not.toHaveBeenCalled();
+      expect(logged).toHaveBeenCalledWith(
+        'MCP write authorization could not be checked',
+        expect.stringContaining('connection terminated unexpectedly'),
+      );
+    } finally {
+      broken.mockRestore();
+      logged.mockRestore();
+    }
+    await expect(service.runAuthorized(principal, async () => 'ok')).resolves.toBe('ok');
+  });
+
+  it('does not turn an unavailable OAuth configuration into a refused grant', async () => {
+    const start = await approved();
+    const token = await service.token(exchange(start.code));
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    const unconfigured = jest
+      .spyOn(service as unknown as { config: () => never }, 'config')
+      .mockImplementationOnce(() => {
+        throw new ServiceUnavailableException('OAuth unavailable.');
+      });
+    const work = jest.fn(async () => 'must not run');
+    try {
+      await expect(service.runAuthorized(principal, work)).rejects.toMatchObject({ status: 503 });
+      expect(work).not.toHaveBeenCalled();
+    } finally {
+      unconfigured.mockRestore();
+    }
   });
 
   it('revokes the whole grant for matching client and keeps unknown tokens indistinguishable', async () => {

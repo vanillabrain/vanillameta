@@ -2,8 +2,8 @@
 # 한 줄로 MCP 아티팩트 시스템을 재판정한다.
 #   scripts/verify/mcp-artifacts-e2e.sh          # 빌드 → 기동 → MCP 쓰기 → 화면 URL 확인 → 재기동 유지 → 정리
 #   KEEP=1 scripts/verify/mcp-artifacts-e2e.sh   # 스택을 남겨 둔다(직접 열어 볼 때)
-# 이 스크립트가 만든 compose 프로젝트만 정리한다. 프로젝트 이름은 실행마다 다르고 vm- 으로 시작해야 한다.
-# 전제: docker compose, curl, python3, 포트 3000·4000 비어 있음.
+# 이 스크립트가 만든 compose 프로젝트만 정리한다. 프로젝트 이름은 실행마다 다르고 vm-artifacts-verify- 로 시작해야 한다.
+# 전제: docker compose, curl, python3, node(브라우저 판정), 포트 3000·4000 비어 있음(아니면 VM_WEB_URL·VM_API_URL).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -24,8 +24,8 @@ if [ -n "${VM_COLIMA_PROFILE:-}" ]; then
   fi
 fi
 case "$PROJECT" in
-  vm-*) ;;
-  *) echo "프로젝트 이름은 vm- 으로 시작해야 합니다(받은 값: $PROJECT). 다른 스택의 볼륨을 지우지 않으려는 방어입니다." >&2; exit 2 ;;
+  vm-artifacts-verify-*) ;;
+  *) echo "프로젝트 이름은 vm-artifacts-verify- 로 시작해야 합니다(받은 값: $PROJECT). 다른 스택의 볼륨을 지우지 않으려는 방어입니다." >&2; exit 2 ;;
 esac
 command -v curl >/dev/null || { echo "curl 이 필요합니다" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 가 필요합니다" >&2; exit 2; }
@@ -34,6 +34,15 @@ if docker compose version >/dev/null 2>&1; then COMPOSE=(docker compose); else
   COMPOSE=(docker-compose)
 fi
 compose() { "${COMPOSE[@]}" -p "$PROJECT" "$@"; }
+
+WEB=${WEB%/}; API=${API%/}
+# 기본 포트(3000·4000)를 다른 스택이 쓰고 있으면 VM_WEB_URL/VM_API_URL 로 바꾼다. 같은 값을 compose 에 넘겨 일관되게 맞춘다.
+WEB_PORT=${WEB##*:}
+API_PORT=${API%/v1}; API_PORT=${API_PORT##*:}
+API_HOST=${API#*://}; API_HOST=${API_HOST%%/*}
+export FRONTEND_HOST_PORT=$WEB_PORT BACKEND_HOST_PORT=$API_PORT
+export MCP_PUBLIC_API_URL=$API MCP_PUBLIC_WEB_URL="$WEB/" CORS_ORIGIN=$WEB REACT_APP_API_URL=$API
+[ "$API_PORT" = 4000 ] || export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:-$((API_PORT + 1000))}
 
 mkdir -p "$EVIDENCE"
 JAR=$(mktemp)
@@ -58,6 +67,33 @@ wait_http() {
     sleep 2
   done
   return 1
+}
+
+render_check() {
+  local label=$1
+  if [ "${VM_SKIP_BROWSER:-0}" = 1 ]; then echo "SKIPPED: 브라우저 렌더 판정($label) — VM_SKIP_BROWSER=1"; return; fi
+  command -v node >/dev/null || { fail "브라우저 렌더 판정($label): node 가 필요합니다"; return; }
+  local items out
+  items=$(python3 - "$HTML_ID" "$DOC_ID" "$SHEET_ID" "$CHART_ID" <<'PY'
+import json, sys
+h, d, s, c = sys.argv[1:5]
+print(json.dumps([
+  {"name": "web", "id": h, "kind": "html", "title": "Hello Web", "needle": "artifact body"},
+  {"name": "document", "id": d, "kind": "document", "title": "Quarterly Note", "needle": "Revenue grew 15%"},
+  {"name": "sheet", "id": s, "kind": "sheet", "title": "Sales Table", "needle": "Seoul"},
+  {"name": "chart", "id": c, "kind": "chart", "title": "Monthly Chart", "needle": ""},
+]))
+PY
+)
+  out=$(WEB="$WEB" ITEMS="$items" SHOTS="$EVIDENCE/render-$label" node scripts/verify/artifact-render-check.mjs 2>&1) && rc=0 || rc=$?
+  printf '%s\n' "$out" >"$EVIDENCE/render-$label.log"
+  while IFS= read -r line; do
+    case "$line" in
+      PASS:*) pass "[$label] ${line#PASS: }" ;;
+      FAIL:*) fail "[$label] ${line#FAIL: }" ;;
+    esac
+  done <<<"$out"
+  [ "$rc" = 0 ] || [ "$FAIL" -gt 0 ] || fail "브라우저 렌더 판정($label) 비정상 종료 rc=$rc"
 }
 
 echo "== 1. 깨끗한 볼륨에서 기동 =="
@@ -125,7 +161,7 @@ DECISION=$(curl -sS -b "$JAR" -H "Authorization: Bearer $JWT" -H "Origin: $WEB" 
 CODE=$(echo "$DECISION" | python3 -c 'import sys,json,urllib.parse as u;d=json.load(sys.stdin);print(u.parse_qs(u.urlparse(d["redirectUrl"]).query)["code"][0])')
 [ -n "$CODE" ] && pass "연결 승인 → 인가 코드" || { fail "승인"; exit 1; }
 
-TOKEN_JSON=$(curl -sS -H 'Host: localhost:4000' \
+TOKEN_JSON=$(curl -sS -H "Host: $API_HOST" \
   --data-urlencode 'grant_type=authorization_code' \
   --data-urlencode "code=$CODE" \
   --data-urlencode "redirect_uri=$REDIRECT" \
@@ -184,6 +220,9 @@ done
 curl -sS -o /dev/null -w '%{http_code}' "$WEB/ai-artifacts/$HTML_ID" | grep -qx 200 \
   && pass "화면 URL $WEB/ai-artifacts/<id> 200" || fail "화면 URL"
 
+echo "== 5b. 실제 브라우저 렌더 =="
+render_check fresh
+
 echo "== 6. 전체 스택 재기동 후 유지 =="
 compose up -d --force-recreate >/dev/null 2>&1
 wait_http "$API/health" 200 || fail "재기동 health"
@@ -194,6 +233,38 @@ for pair in "web:$HTML_ID:Hello Web" "document:$DOC_ID:Revenue grew 15%" "sheet:
   curl -sS -o /dev/null -w '%{http_code}' "$WEB/ai-artifacts/$id" | grep -qx 200 \
     && pass "재기동 뒤 $name URL 200" || fail "재기동 뒤 $name URL"
 done
+
+echo "== 6b. 재기동 뒤 브라우저 렌더 =="
+render_check restarted
+
+echo "== 7. 연결 해제가 진행 중일 때 쓰기는 반영되지 않는다 =="
+psql_run() { compose exec -T postgres psql -U vanillameta -d vanillameta -At "$@"; }
+BEFORE=$(psql_run -c "SELECT COUNT(*) FROM ai_artifact WHERE title='Race Probe'")
+ACTIVE=$(psql_run -c "SELECT COUNT(*) FROM mcp_oauth_grant WHERE revoked = false")
+[ "$ACTIVE" -ge 1 ] && pass "해제할 활성 연결이 $ACTIVE 개 있음" || fail "해제할 활성 연결이 없음(경합 판정 무효)"
+(psql_run -c "BEGIN; SELECT id FROM \"user\" WHERE id = (SELECT \"actorId\" FROM mcp_oauth_grant WHERE revoked = false LIMIT 1) FOR UPDATE; UPDATE mcp_oauth_grant SET revoked = true WHERE revoked = false; SELECT pg_sleep(10); COMMIT;" >/dev/null 2>&1 &)
+HELD=0
+for _ in $(seq 1 40); do
+  if [ "$(psql_run -c "SELECT COUNT(*) FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query LIKE '%pg_sleep(10)%' AND pid <> pg_backend_pid()")" -ge 1 ]; then HELD=1; break; fi
+  sleep 0.5
+done
+[ "$HELD" = 1 ] && pass "연결 해제 트랜잭션이 잠금을 쥐고 있음" || fail "연결 해제 트랜잭션이 잠금을 쥐지 못함(경합 판정 무효)"
+WRITE_START=$SECONDS
+RACE=$(call vm_create_artifact '{"kind":"html","title":"Race Probe","content":{"html":"<p>raced</p>"}}')
+WAITED=$((SECONDS - WRITE_START))
+echo "$RACE" >"$EVIDENCE/race-response.json"
+sleep 10
+AFTER=$(psql_run -c "SELECT COUNT(*) FROM ai_artifact WHERE title='Race Probe'")
+REVOKED=$(psql_run -c "SELECT COUNT(*) FROM mcp_oauth_grant WHERE revoked = true")
+[ "$REVOKED" -ge 1 ] && pass "해제 트랜잭션이 연결 $REVOKED 개를 실제로 해제함" || fail "해제 트랜잭션이 아무 연결도 해제하지 못함(경합 판정 무효)"
+[ "$WAITED" -ge 2 ] && pass "쓰기가 잠금이 풀릴 때까지 ${WAITED}초 기다림" || fail "쓰기가 잠금을 기다리지 않고 ${WAITED}초 만에 돌아옴(경합 판정 무효)"
+echo "$RACE" | grep -q '"isError":true' && echo "$RACE" | grep -q 'cannot authorize this write' \
+  && pass "해제 중인 연결의 쓰기가 권한 오류로 거절됨" || fail "해제 중인 연결의 쓰기가 권한 오류로 거절되지 않음"
+[ "$AFTER" = "$BEFORE" ] && pass "해제된 연결로 행이 생기지 않음($BEFORE → $AFTER)" || fail "해제된 연결로 행이 생김($BEFORE → $AFTER)"
+LATER=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' "$API/mcp")
+[ "$LATER" = 401 ] && pass "해제 뒤 토큰이 401 로 거절됨" || fail "해제 뒤 토큰이 거절되지 않음($LATER)"
 
 echo
 echo "결과: PASS=$PASS FAIL=$FAIL  증거=$EVIDENCE"

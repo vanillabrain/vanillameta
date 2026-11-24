@@ -25,6 +25,7 @@ export default {
     documentsRead: '보관 문서 내용 읽기',
     artifactsRead: '내 아티팩트 읽기',
     artifactsWrite: '내 아티팩트 만들기·수정·삭제',
+    writeOptIn: '쓰기 권한은 기본으로 꺼져 있습니다. AI가 내 아티팩트를 만들고 바꾸게 하려면 직접 선택하세요.',
     approve: '연결 승인',
     cancel: '요청 취소',
     loading: '연결을 불러오는 중…',

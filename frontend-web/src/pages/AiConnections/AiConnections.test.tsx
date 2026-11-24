@@ -109,6 +109,34 @@ it('keyboard selects a subset and submits only once', async () => {
   expect(aiConnectionsService.decide).toHaveBeenCalledWith(request, { decision: 'approve', scopes: ['sources:read'] });
   expect((await screen.findByRole('status')).textContent).toBe('Submitting…');
 });
+it('leaves write scopes unchecked until the user opts in', async () => {
+  const withWrite = {
+    ...request,
+    requestedScopes: ['artifacts:read', 'artifacts:write'] as ConsentRequest['requestedScopes'],
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(withWrite);
+  showConsent();
+  const write = await screen.findByRole('checkbox', { name: 'Create, update and delete my artifacts' });
+  expect((screen.getByRole('checkbox', { name: 'Read my artifacts' }) as HTMLInputElement).checked).toBe(true);
+  expect((write as HTMLInputElement).checked).toBe(false);
+  expect(screen.getByText(/Write access is off by default/)).toBeTruthy();
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenCalledWith(withWrite, { decision: 'approve', scopes: ['artifacts:read'] });
+});
+it('sends the write scope once the user ticks it', async () => {
+  const withWrite = {
+    ...request,
+    requestedScopes: ['artifacts:read', 'artifacts:write'] as ConsentRequest['requestedScopes'],
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(withWrite);
+  showConsent();
+  await click(await screen.findByRole('checkbox', { name: 'Create, update and delete my artifacts' }));
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenCalledWith(withWrite, {
+    decision: 'approve',
+    scopes: ['artifacts:read', 'artifacts:write'],
+  });
+});
 it('empty selection disables approval and cancellation sends no scopes', async () => {
   showConsent();
   await click(await screen.findByRole('checkbox', { name: 'Read source schemas and descriptions' }));
