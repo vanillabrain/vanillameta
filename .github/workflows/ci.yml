@@ -104,6 +104,11 @@ jobs:
       - name: Lint
         run: npx eslint src e2e --ext .ts,.tsx
 
+      - name: Block new React effects
+        run: |
+          node --test scripts/check-use-effect.test.mjs
+          npm run check:effects
+
       - name: Unit tests
         run: npx vitest run --maxWorkers=2
 

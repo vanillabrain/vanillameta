@@ -7,6 +7,7 @@ import type { StudioRunContext } from './studioRunTransport';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 const chat = vi.hoisted(() => ({
   options: null as any,
+  status: 'ready',
   sendMessage: vi.fn(),
   stop: vi.fn(),
   clearError: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('@ai-sdk/react', () => ({
       messages: [],
       setMessages: chat.setMessages,
       sendMessage: chat.sendMessage,
-      status: 'ready',
+      status: chat.status,
       error: null,
       clearError: chat.clearError,
       stop: chat.stop,
@@ -95,6 +96,7 @@ const published = () => ({
 const defaultProps = { selectedTitle: undefined, onApply: vi.fn(), locked: false, onSaved: vi.fn() };
 
 beforeEach(async () => {
+  chat.status = 'ready';
   vi.clearAllMocks();
   const { webcrypto } = await import('node:crypto');
   vi.stubGlobal('crypto', webcrypto);
@@ -575,4 +577,16 @@ it('does not poll the run list while its request streams, and polls again once t
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('keeps the next draft editable while the current request streams and prevents concurrent submission', () => {
+  chat.status = 'streaming';
+  render(<StudioConversation {...defaultProps} context={context} />);
+  const input = screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement;
+  expect(input.disabled).toBe(false);
+  fireEvent.change(input, { target: { value: '다음 요청 초안' } });
+  expect(input.value).toBe('다음 요청 초안');
+  if (!input.form) throw new Error('The draft input must belong to the composer form');
+  fireEvent.submit(input.form);
+  expect(chat.sendMessage).not.toHaveBeenCalled();
 });
