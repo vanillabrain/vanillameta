@@ -644,7 +644,7 @@ export default function StudioConversation({
           value={input}
           onChange={event => setInput(event.target.value)}
           inputProps={{ maxLength: 2000 }}
-          disabled={busy || acting || locked || creationUncertain}
+          disabled={acting || locked || creationUncertain}
         />
         <div>
           <span>수정은 초안 · 저장·링크 공유는 명시 요청 시</span>
