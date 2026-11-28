@@ -25,6 +25,18 @@
 
 새 테스트는 재발 위험이 높은 동작에만 추가한다. 각 계산/권한 조합을 UI로 모두 반복하지 않는다. 기존 하위 검증을 먼저 활용한다.
 
+## useEffect 로컬 검사
+
+프런트엔드 제품 코드 변경을 마친 뒤 저장소 루트에서 실행한다.
+
+```sh
+npm --prefix frontend-web run check:effects
+```
+
+이 명령은 제품 소스의 React `useEffect` 호출을 파일·호출 서명·횟수 기준 목록과 비교한다. 새 호출이 있으면 파일과 줄을 표시하고 종료 코드 1을 반환한다. `frontend-web`의 `npm run lint`와 GitHub Actions의 프런트엔드 작업도 같은 명령을 호출한다.
+
+검사기의 테스트는 `frontend-web/scripts/check-use-effect.test.mjs`에 있다. 임시 파일로 직접 호출·별칭·구조 분해 차단과 검토된 어댑터 허용을 확인한다. 검사기를 수정할 때는 루트에서 `node --test frontend-web/scripts/check-use-effect.test.mjs`도 실행한다. GitHub Actions는 두 명령을 실행한다. 앱 서버나 브라우저는 필요 없다. 기존 기준 목록은 신규 위반을 통과시키는 데 사용하지 않는다.
+
 ## 명령
 
 루트에서 `npm test`, `npm run build`는 통합 시 빠른 전체 검사이며 일반 저장 훅에 연결하지 않는다. FE 타입은 `npx tsc --noEmit`, lint는 `npx eslint src e2e`. 단위 선택 예: BE `npm test -- --runInBand src/metric/metric.service.spec.ts`, FE `npx vitest run src/utils/util.columns.test.ts`.

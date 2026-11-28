@@ -107,7 +107,7 @@ jobs:
       - name: Block new React effects
         run: |
           node --test scripts/check-use-effect.test.mjs
-          node scripts/check-use-effect.mjs
+          npm run check:effects
 
       - name: Unit tests
         run: npx vitest run --maxWorkers=2
