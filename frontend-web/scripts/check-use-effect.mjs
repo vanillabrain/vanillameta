@@ -10,8 +10,8 @@ const adapters = new Set([]);
 const baselinePath = resolve(project, 'scripts/use-effect-baseline.json');
 
 export function inventory(root) {
-  const files = ts.sys.readDirectory(root, ['.ts', '.tsx', '.js', '.jsx'])
-    .filter(file => !file.endsWith('.d.ts') && !/\.(test|spec)\.[jt]sx?$/.test(file) && !/\/(__tests__|__mocks__)\//.test(file));
+  const files = ts.sys.readDirectory(root, ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'])
+    .filter(file => !/\.d\.(ts|mts|cts)$/.test(file) && !/\.(test|spec)\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/.test(file) && !/\/(__tests__|__mocks__)\//.test(file));
   const program = ts.createProgram(files, { allowJs: true, noResolve: true, noLib: true, types: [] });
   const checker = program.getTypeChecker();
   const printer = ts.createPrinter({ removeComments: true });
@@ -41,6 +41,18 @@ export function inventory(root) {
       return !!node && ts.isIdentifier(node) && bindings.has(checker.getSymbolAtLocation(node));
     }
 
+    function collectDestructuredEffects(node) {
+      if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name)
+        && reactBinding(node.initializer, namespaces)) {
+        for (const binding of node.name.elements) {
+          const property = binding.propertyName ?? binding.name;
+          if ((ts.isIdentifier(property) || ts.isStringLiteral(property)) && property.text === 'useEffect'
+            && ts.isIdentifier(binding.name)) named.add(checker.getSymbolAtLocation(binding.name));
+        }
+      }
+      ts.forEachChild(node, collectDestructuredEffects);
+    }
+
     function visit(node) {
       if (ts.isCallExpression(node)) {
         let callee = node.expression;
@@ -59,6 +71,7 @@ export function inventory(root) {
       ts.forEachChild(node, visit);
     }
 
+    collectDestructuredEffects(source);
     visit(source);
   }
   return entries;
