@@ -586,6 +586,7 @@ it('keeps the next draft editable while the current request streams and prevents
   expect(input.disabled).toBe(false);
   fireEvent.change(input, { target: { value: '다음 요청 초안' } });
   expect(input.value).toBe('다음 요청 초안');
-  fireEvent.submit(input.closest('form')!);
+  if (!input.form) throw new Error('The draft input must belong to the composer form');
+  fireEvent.submit(input.form);
   expect(chat.sendMessage).not.toHaveBeenCalled();
 });

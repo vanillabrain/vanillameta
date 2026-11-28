@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **저장소 범위:** 이 저장소에서는 VanillaMeta의 웹·API·데이터 처리와 관련 검증·문서만 작업한다. 셀리왕 및 Electron 데스크톱 작업은 해당 프로젝트 저장소의 별도 작업으로 다룬다.
+
 - **PostgreSQL 17 메타데이터(2026-10-31, 최우선):** `NODE_ENV=local`의 SQLite 단위 테스트를 제외하면 메타데이터 DB는 PostgreSQL 17이다. [전환 계획](docs/plans/postgres-metadata-cutover.md)에 따라 PostgreSQL 전용 migration은 `backend-api/src/migrations/postgres/`만 사용하고 `PostgresBaseline1793500000000`을 기록한다. [실제 런타임 검증](docs/testing/postgres-metadata.md)은 PG 17.11 bootstrap·재실행 멱등성·Nest/Artifact 여정·`pg_dump` 복원·MySQL 이관을 확인했다. production bootstrap은 `data-source.ts`의 entity 목록에서 스키마를 동기화하므로 `mcp-oauth.entities.ts`처럼 `*.entity` glob에 걸리지 않는 entity 파일을 새로 만들면 이 목록에 명시해야 한다. 원시 SQL의 camelCase 식별자는 PostgreSQL에서 소문자로 folding되므로 반드시 인용한다. 기존 `*mysql*.spec.ts`와 `docs/testing/*mysql*`의 MySQL 결과는 역사 증빙이며 PostgreSQL 수용 증거가 아니다. 메타데이터 잠금·오류·모니터링을 수정할 때 SQLite 분기만 보고 끝내지 말고 PostgreSQL `FOR UPDATE`, SQLSTATE, `timezone`/timestamp, `bigint` hydration을 함께 검증한다. 고객 데이터 소스의 MySQL 지원은 별개다.
 
 - **외부 초대 베타(2026-10-23, 최우선):** [전략](docs/strategy/external-beta.md)·[계획](docs/plans/external-beta-launch.md)이 아래의 "사내 Artifact 우선"·"고객 파일럿" 우선순위를 대체한다. 단일 VM+Docker Compose, AI SDK 제공자 레지스트리, 초대 가입·쿼터, 선언형 스펙 확장이 범위이며 Lambda(`serverless.yml`) 경로는 폐기 대상이다. 일부 상태가 프로세스 메모리에 있어 단일 인스턴스만 지원한다. 운영 부팅은 `production-guard`가 위험한 설정을 거부한다.
@@ -174,6 +176,8 @@
 - Rill 공식 데모 데이터를 기준으로 기능과 UI를 항상 비교한다. 유사한 탐색 UI를 구현하고, 같은 조건의 수치·API/XHR·실제 화면으로 검증하며 미확인은 명시한다.
 - 분석 UI는 [UI Kit](docs/design/analysis-ui-kit.md)의 토큰·국소 테마·공통 선택 버튼을 먼저 재사용한다. 부모 화면에서 버튼 최소 높이를 강제하거나 화면별 크기 예외를 중첩하지 않고 실제 크기·밀도·상태를 확인한다.
 - UI 요소 추가·수정 전 [검증 스킬의 디자인·레이아웃 회귀 기준](skills/vanillameta-verify/SKILL.md#ui-컴포넌트-디자인레이아웃-회귀)을 적용한다. 작업 중과 완료 시 크기·높이·정렬·간격·레이아웃·폰트 및 주변 요소의 틀어짐을 실제 화면으로 확인하고 기능/디자인 결과를 분리한다.
+- 초기 로딩·화면 전환·입력·스트리밍·대량 렌더링 경로를 바꿀 때 [UI 응답성 회귀 방지](skills/vanillameta-verify/SKILL.md#ui-응답성-회귀-방지)를 적용한다. 렌더러 경계와 실행 순서를 구현·리뷰에서 확인하고, 속도를 개선했다고 보고할 때는 같은 조건의 전후 측정을 남긴다.
+- 화면·컴포넌트·기능 전용 훅에 새 `useEffect` 직접 호출을 금지한다. 외부 시스템 동기화에 필요한 공용 훅·어댑터 예외와 기존 코드의 전환 기준은 [제품 코드의 Effect 방침](skills/vanillameta-verify/SKILL.md#제품-코드에서-useeffect-직접-사용-금지)을 따른다.
 - 지표·분석 요청의 의미와 UI/저장 상태를 특정 엔진의 SQL·드라이버 실행과 구분한다. 이 경계는 현재 변경 범위에서 유지한다.
 - BigQuery·AWS Athena 연결은 고객 수요가 확인된 향후 단계로 미룬다. 미래 확장만을 위한 범용 엔진 프레임워크나 전면 리팩터링을 현재 완료 조건에 추가하지 않는다.
 - 외부 엔진을 실제로 설계·구현할 때만 [외부 분석 엔진 도입 지침](docs/strategy/2026-10-14-rill-feature-integration.md#외부-분석-엔진-도입-지침--사용자-합의-2026-10-14)의 상세 기준을 확인한다.
